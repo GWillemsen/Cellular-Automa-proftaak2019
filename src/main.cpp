@@ -5,8 +5,6 @@
 #include <math.h>
 #include <chrono>
 
-
-
 #include "imgui.h"
 
 #include "imgui_impl_glfw.h"
@@ -15,8 +13,6 @@
 
 #include "shader.h"
 // #include "headers\renderItem\renderItem.h"
-
-// Includes the standard "std" lib
 
 int screenWidth = 800;
 int screenHeight = 600;
@@ -28,56 +24,32 @@ Shader basicShaderProgram;
 void framebuffer_size_callback(GLFWwindow* a_window, int a_width, int a_height);
 void processInput(GLFWwindow* a_window);
 void getError(int a_line);
-void initImgui(char* opengl, GLFWwindow* window);
+void RenderImgui(bool &show_demo_window, bool &show_another_window, ImVec4 &clear_color);
+GLFWwindow* CreateWindow();
+void InitGLFW();
+unsigned int CreateVBO(float* indices);
+unsigned int CreateVAO();
+void UpdateClearColor(ImVec4& a_clear_color, float a_deltaSeconds);
+void NormalizeVector(ImVec4& a_vector);
+unsigned int CreateEBO(unsigned int* indices);
+bool TryInitGLAD();
 
 int main()
 {
-	// ---
-	// Initialize GLFW.
-	// ---
-	glfwInit();
-
-	// Tell GLFW that we want to use OpenGL 3.3
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-
-	// Tell GLFW that we want to use the OpenGL's core profile.
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-	// Do this for mac compatibility.
-	// glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+	InitGLFW();
 
 	// ---
 	// Create Window.
 	// ---
 
-	// Instantiate the window object.
-	GLFWwindow* window = glfwCreateWindow(screenWidth, screenHeight, "LearnOpenGL", NULL, NULL);
-
-	// Make sure that the window is created.
-	if (window == NULL)
-	{
-		std::cout << "Failed to create GLFW window." << std::endl;
-		glfwTerminate();
-
-		std::cin.get();
+	GLFWwindow* window = CreateWindow();
+	if (window == nullptr)
 		return -1;
-	}
 
 	glfwMakeContextCurrent(window);
 
-	// ---
-	// Initialize GLAD.
-	// ---
-
-	// Make sure that glad has been initialized successfully.
-	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
-	{
-		std::cout << "Failed to initialize GLAD." << std::endl;
-
-		std::cin.get();
+	if (!TryInitGLAD())
 		return -1;
-	}
 
 	// ---
 	// Set the viewport
@@ -126,10 +98,6 @@ int main()
 		0, 3, 2
 	};
 
-	unsigned int renderVao;
-	unsigned int vboBuffer;
-	unsigned int eboBuffer;
-
 	// Rendering steps:
 	// 1. Create a vao with glGenVertexArrays and then bind it with glBindVertexArray.
 	// 2. Create a vbo.
@@ -137,18 +105,9 @@ int main()
 	// 4. enable vertex attribute pointers.
 	// 5. Render.
 
-	// Create a vao.
-	glGenVertexArrays(1, &renderVao);
-	glBindVertexArray(renderVao);
-
-	// Create a vbo and fill it with data.
-	glGenBuffers(1, &vboBuffer);
-	glBindBuffer(GL_ARRAY_BUFFER, vboBuffer);
-	glBufferData(GL_ARRAY_BUFFER, 12 * sizeof(float), vertices, GL_STATIC_DRAW);
-
-	glGenBuffers(1, &eboBuffer);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, eboBuffer);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(unsigned int), indices, GL_STATIC_DRAW);
+	unsigned int renderVao = CreateVAO();
+	unsigned int vboBuffer = CreateVBO(vertices);
+	unsigned int eboBuffer = CreateEBO(indices);
 
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_TRUE, 3 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(0);
@@ -161,44 +120,21 @@ int main()
 	ImGui::CreateContext();
 
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
-
 	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
-
 	//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
-
-
-
+	
 	// Setup Dear ImGui style
-
 	ImGui::StyleColorsDark();
-
 	//ImGui::StyleColorsClassic();
-
-
 
 	// Setup Platform/Renderer bindings
 
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
-
 	ImGui_ImplOpenGL3_Init(glsl_version);
+
 	bool show_demo_window = true;
-
 	bool show_another_window = false;
-
-	ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
-
-
-
-
-
-	// Keeps track when we can cycle the colors.
-	int colorCycle = 0;
-	int colorCycleTick = 0;
-
-	// Controls the color of the rectangle.
-	float redColorChannel = 0.0f;
-	float greenColorChannel = 0.0f;
-	float blueColorChannel = 0.0f;
+	ImVec4 clear_color = ImVec4(0.45f, 0.0F, 0.00f, 1.00f);
 
 	// Application Loop.
 	float deltaseconds = 0;
@@ -211,118 +147,24 @@ int main()
 		lastTime = currentTime;
 
 		glfwPollEvents();
-		// End rendering.
+
+		glClearColor(1 - clear_color.x, 1 - clear_color.y, 1 - clear_color.z, 1 - clear_color.w);
+		glClear(GL_COLOR_BUFFER_BIT);
 
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
 
-		// 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
-		if (show_demo_window)
-			ImGui::ShowDemoWindow(&show_demo_window);
-
 		processInput(window);
 
-		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
-
-		float valueDiff = deltaseconds;
-
-		if (redColorChannel > 1.00000F)
-			redColorChannel = 1.0F;
-
-		if (greenColorChannel > 1.00000F)
-			greenColorChannel = 1.0F;
-
-		if (blueColorChannel > 1.00000F)
-			blueColorChannel = 1.0F;
-
-		if (colorCycleTick >= colorCycle)
-		{
-			if (redColorChannel < 1.0f && greenColorChannel == 0.0f && blueColorChannel == 0.0f)
-			{
-				redColorChannel += valueDiff;
-			}
-			else if (redColorChannel > 0.0f && greenColorChannel < 1.0f && blueColorChannel == 0.0f)
-			{
-				greenColorChannel += valueDiff;
-
-				redColorChannel -= valueDiff;
-				if (redColorChannel <= 0.01f)
-				{
-					redColorChannel = 0.0f;
-				}
-			}
-			else if (redColorChannel == 0.0f && greenColorChannel > 0.0f && blueColorChannel < 1.0f)
-			{
-				blueColorChannel += valueDiff;
-
-				greenColorChannel -= valueDiff;
-				if (greenColorChannel <= 0.01f)
-				{
-					greenColorChannel = 0.0f;
-				}
-			}
-			else if (redColorChannel >= 0.0f && greenColorChannel == 0.0f && blueColorChannel > 0.0f)
-			{
-				redColorChannel += valueDiff;
-
-				blueColorChannel -= valueDiff;
-				if (blueColorChannel <= 0.01f)
-				{
-					blueColorChannel = 0.0f;
-				}
-			}
-
-			//std::cout << redColorChannel << ", " << greenColorChannel << ", " << blueColorChannel << std::endl;
-
-
-			colorCycleTick = 0;
-		}
-		else
-		{
-			colorCycleTick += 1;
-		}
+		UpdateClearColor(clear_color, deltaseconds);
 
 		// Start rendering.
 		basicShaderProgram.use();
-		glUniform4f(colorUniform, redColorChannel, greenColorChannel, blueColorChannel, 1.0f);
+		glUniform4f(colorUniform, clear_color.x, clear_color.y, clear_color.z, clear_color.w);
 		glBindVertexArray(renderVao);
 		glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
-		
-
-		// 2. Show a simple window that we create ourselves. We use a Begin/End pair to created a named window.
-		{
-			static float f = 0.0f;
-			static int counter = 0;
-
-			ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
-
-			ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-			ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
-			ImGui::Checkbox("Another Window", &show_another_window);
-
-			ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-			ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
-
-			if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-				counter++;
-			ImGui::SameLine();
-			ImGui::Text("counter = %d", counter);
-
-			ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-			ImGui::End();
-		}
-
-		// 3. Show another simple window.
-		if (show_another_window)
-		{
-			ImGui::Begin("Another Window", &show_another_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
-			ImGui::Text("Hello from another window!");
-			if (ImGui::Button("Close Me"))
-				show_another_window = false;
-			ImGui::End();
-		}
+		RenderImgui(show_demo_window, show_another_window, clear_color);
 
 
 
@@ -331,21 +173,14 @@ int main()
 		ImGui::Render();
 		int display_w, display_h;
 		glfwGetFramebufferSize(window, &display_w, &display_h);
-		/*glViewport(0, 0, display_w, display_h);
-		glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
-		glClear(GL_COLOR_BUFFER_BIT);*/
+		glViewport(0, 0, display_w, display_h);
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 		glfwSwapBuffers(window);
 	}
 
-
-
 	// Cleanup
-
 	ImGui_ImplOpenGL3_Shutdown();
-
 	ImGui_ImplGlfw_Shutdown();
-
 	ImGui::DestroyContext();
 
 	glfwTerminate();
@@ -376,3 +211,198 @@ void getError(int a_line)
 	if (m_error != GL_NO_ERROR)
 		std::cout << m_error << " At line: " << a_line << std::endl;
 }
+
+
+void RenderImgui(bool &a_show_demo_window, bool &a_show_another_window, ImVec4 &a_clear_color)
+{
+
+	// 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
+	if (a_show_demo_window)
+		ImGui::ShowDemoWindow(&a_show_demo_window);
+
+	// 2. Show a simple window that we create ourselves. We use a Begin/End pair to created a named window.
+	{
+		static float f = 0.0f;
+		static int counter = 0;
+
+		ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+
+		ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
+		ImGui::Checkbox("Demo Window", &a_show_demo_window);      // Edit bools storing our window open/close state
+		ImGui::Checkbox("Another Window", &a_show_another_window);
+
+		ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
+		ImGui::ColorEdit4("clear color", (float*)&a_clear_color); // Edit 3 floats representing a color
+
+		if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+			counter++;
+		ImGui::SameLine();
+		ImGui::Text("counter = %d", counter);
+
+		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+		ImGui::End();
+	}
+
+	// 3. Show another simple window.
+	if (a_show_another_window)
+	{
+		ImGui::Begin("Another Window", &a_show_another_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
+		ImGui::Text("Hello from another window!");
+		if (ImGui::Button("Close Me"))
+			a_show_another_window = false;
+		ImGui::End();
+	}
+}
+
+GLFWwindow* CreateWindow()
+{
+	GLFWwindow* window = glfwCreateWindow(screenWidth, screenHeight, "LearnOpenGL", NULL, NULL);
+
+	// Make sure that the window is created.
+	if (window == NULL)
+	{
+		std::cout << "Failed to create GLFW window." << std::endl;
+		glfwTerminate();
+
+		std::cin.get();
+		return nullptr;
+	}
+	return window;
+}
+
+void InitGLFW()
+{
+	// ---
+	// Initialize GLFW.
+	// ---
+	glfwInit();
+
+	// Tell GLFW that we want to use OpenGL 3.3
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+
+	// Tell GLFW that we want to use the OpenGL's core profile.
+	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+	// Do this for mac compatibility.
+	// glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+}
+
+bool TryInitGLAD()
+{
+	// ---
+	// Initialize GLAD.
+	// ---
+
+	// Make sure that glad has been initialized successfully.
+	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
+	{
+		std::cout << "Failed to initialize GLAD." << std::endl;
+
+		std::cin.get();
+		return false;
+	}
+	return true;
+}
+
+unsigned int CreateEBO(unsigned int* a_indices)
+{
+	unsigned int eboBuffer;
+	glGenBuffers(1, &eboBuffer);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, eboBuffer);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(unsigned int), a_indices, GL_STATIC_DRAW);
+	return eboBuffer;
+}
+
+unsigned int CreateVBO(float* a_vertices)
+{
+	unsigned int vboBuffer;
+	// Create a vbo and fill it with data.
+	glGenBuffers(1, &vboBuffer);
+	glBindBuffer(GL_ARRAY_BUFFER, vboBuffer);
+	glBufferData(GL_ARRAY_BUFFER, 12 * sizeof(float), a_vertices, GL_STATIC_DRAW);
+	return vboBuffer;
+}
+
+unsigned int CreateVAO()
+{
+	unsigned int renderVao;
+	// Create a vao.
+	glGenVertexArrays(1, &renderVao);
+	glBindVertexArray(renderVao);
+	return renderVao;
+}
+
+void UpdateClearColor(ImVec4& a_clear_color, float a_deltaSeconds)
+{
+	// clear_color
+	/*
+		x = red
+		y = green
+		z = blue
+		w = alpha
+	*/
+	NormalizeVector(a_clear_color);
+
+	if (a_clear_color.x < 1.0f && a_clear_color.y == 0.0f && a_clear_color.z == 0.0f)
+	{
+		a_clear_color.x += a_deltaSeconds;
+	}
+	else if (a_clear_color.x > 0.0f && a_clear_color.y < 1.0f && a_clear_color.z == 0.0f)
+	{
+		a_clear_color.y += a_deltaSeconds;
+
+		a_clear_color.x -= a_deltaSeconds;
+		if (a_clear_color.x <= 0.01f)
+		{
+			a_clear_color.x = 0.0f;
+		}
+	}
+	else if (a_clear_color.x == 0.0f && a_clear_color.y > 0.0f && a_clear_color.z < 1.0f)
+	{
+		a_clear_color.z += a_deltaSeconds;
+
+		a_clear_color.y -= a_deltaSeconds;
+		if (a_clear_color.y <= 0.01f)
+		{
+			a_clear_color.y = 0.0f;
+		}
+	}
+	else if (a_clear_color.x >= 0.0f && a_clear_color.y == 0.0f && a_clear_color.z > 0.0f)
+	{
+		a_clear_color.x += a_deltaSeconds;
+
+		a_clear_color.z -= a_deltaSeconds;
+		if (a_clear_color.z <= 0.01f)
+		{
+			a_clear_color.z = 0.0f;
+		}
+	}
+	NormalizeVector(a_clear_color);
+}
+
+void NormalizeVector(ImVec4& a_vector)
+{
+	if (a_vector.x > 1.00000F)
+		a_vector.x = 1.0F;
+
+	if (a_vector.y > 1.00000F)
+		a_vector.y = 1.0F;
+
+	if (a_vector.z > 1.00000F)
+		a_vector.z = 1.0F;
+
+	if (a_vector.w > 1.00000F)
+		a_vector.w = 1.0F;
+
+	if (a_vector.x < 0)
+		a_vector.x = 0;
+	if (a_vector.y < 0)
+		a_vector.y = 0;
+	if (a_vector.z < 0)
+		a_vector.z = 0;
+	if (a_vector.w < 0)
+		a_vector.w = 0;
+}
+
+
