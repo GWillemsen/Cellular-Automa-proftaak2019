@@ -1,9 +1,17 @@
 // Include libs.
+#include <thread>
 #include <iostream>
 #include <glad\glad.h>
 #include <GLFW\glfw3.h>
 #include <math.h>
 #include <chrono>
+#include <glm/ext.hpp> //glm::value ptr
+#include <glm/glm.hpp> //glm core
+#include <glm/vec2.hpp> //glm vec2
+#include <glm/mat4x4.hpp> // glm::mat4
+#include <glm/ext/matrix_transform.hpp> // glm::translate, glm::rotate, glm::scale
+#include <glm/ext/matrix_clip_space.hpp> // glm::perspective
+#include <glm/gtx/string_cast.hpp>
 
 #include "imgui.h"
 
@@ -27,11 +35,12 @@ void getError(int a_line);
 void RenderImgui(bool &show_demo_window, bool &show_another_window, ImVec4 &clear_color);
 GLFWwindow* CreateWindow();
 void InitGLFW();
-unsigned int CreateVBO(float* indices);
+unsigned int CreateVBO(float* a_indices, int a_verticeCount);
 unsigned int CreateVAO();
+unsigned int CreateEBO(unsigned int* indices, int a_indiceCount);
 void UpdateClearColor(ImVec4& a_clear_color, float a_deltaSeconds);
 void NormalizeVector(ImVec4& a_vector);
-unsigned int CreateEBO(unsigned int* indices);
+void UpdateRotation(glm::vec3* data, glm::vec3* a_vertices, int a_verticesCount, float a_addedRotation);
 bool TryInitGLAD();
 
 int main()
@@ -80,14 +89,14 @@ int main()
 	int colorUniform = basicShaderProgram.getUniformLocation("u_Color");
 	glUniform4f(colorUniform, 1.0f, 0.2f, 0.3f, 1.0f);
 
-	float vertices[] = {
+	glm::vec3 vertices[] = {
 		// Triangle 1
-		-0.5f,  0.5f, 0.0f, // Index 0, Top left
-		-0.5f, -0.5f, 0.0f, // Index 1, Bottom left
-		 0.5f, -0.5f, 0.0f, // Index 2, Bottom right
+		glm::vec3(-0.5f,  0.5f, 0.0f), // Index 0, Top left
+		glm::vec3(-0.5f, -0.5f, 0.0f), // Index 1, Bottom left
+		glm::vec3(0.5f, -0.5f, 0.0f), // Index 2, Bottom right
 
-		 // Triangle 2
-		 0.5f,  0.5f, 0.0f  // Index 3, Top right
+		// Triangle 2
+		glm::vec3(0.5f,  0.5f, 0.0f)  // Index 3, Top right
 	};
 
 	unsigned int indices[] = {
@@ -106,10 +115,11 @@ int main()
 	// 5. Render.
 
 	unsigned int renderVao = CreateVAO();
-	unsigned int vboBuffer = CreateVBO(vertices);
-	unsigned int eboBuffer = CreateEBO(indices);
-
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_TRUE, 3 * sizeof(float), (void*)0);
+	unsigned int vboBuffer = CreateVBO((float*)vertices, 4);
+	unsigned int eboBuffer = CreateEBO(indices, 6);
+	getError(118);
+	
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_TRUE, sizeof(glm::vec3), (void*)0);
 	glEnableVertexAttribArray(0);
 
 
@@ -139,6 +149,7 @@ int main()
 	// Application Loop.
 	float deltaseconds = 0;
 	auto lastTime = std::chrono::high_resolution_clock::now();
+	float rotation = 0.0f;
 	while (!glfwWindowShouldClose(window))
 	{
 		auto currentTime = std::chrono::high_resolution_clock::now();
@@ -147,17 +158,28 @@ int main()
 		lastTime = currentTime;
 
 		glfwPollEvents();
-
-		glClearColor(1 - clear_color.x, 1 - clear_color.y, 1 - clear_color.z, 1 - clear_color.w);
+		
+		//glClearColor(1 - clear_color.x, 1 - clear_color.y, 1 - clear_color.z, 1 - clear_color.w);
+		glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
+	
+		getError(167);
+		glm::vec3 *data = (glm::vec3 *)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+		UpdateRotation(data, vertices, sizeof(vertices) / sizeof(glm::vec3), rotation);
+		glUnmapBuffer(GL_ARRAY_BUFFER);
+		
+		if (rotation > 360)
+			rotation = 0;
+		rotation += 10;
 
+		//glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
 
 		processInput(window);
 
-		UpdateClearColor(clear_color, deltaseconds);
+		UpdateClearColor(clear_color, deltaseconds * 2);
 
 		// Start rendering.
 		basicShaderProgram.use();
@@ -175,9 +197,11 @@ int main()
 		glfwGetFramebufferSize(window, &display_w, &display_h);
 		glViewport(0, 0, display_w, display_h);
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+		
+		// use the direct pointer from the buffer map. then use the original vertice array to get its size.
 		glfwSwapBuffers(window);
 	}
-
+		
 	// Cleanup
 	ImGui_ImplOpenGL3_Shutdown();
 	ImGui_ImplGlfw_Shutdown();
@@ -207,11 +231,9 @@ void processInput(GLFWwindow* a_window)
 void getError(int a_line)
 {
 	GLenum m_error = glGetError();
-
 	if (m_error != GL_NO_ERROR)
 		std::cout << m_error << " At line: " << a_line << std::endl;
 }
-
 
 void RenderImgui(bool &a_show_demo_window, bool &a_show_another_window, ImVec4 &a_clear_color)
 {
@@ -305,22 +327,22 @@ bool TryInitGLAD()
 	return true;
 }
 
-unsigned int CreateEBO(unsigned int* a_indices)
+unsigned int CreateEBO(unsigned int* a_indices, int a_indiceCount)
 {
 	unsigned int eboBuffer;
 	glGenBuffers(1, &eboBuffer);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, eboBuffer);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(unsigned int), a_indices, GL_STATIC_DRAW);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, a_indiceCount * sizeof(unsigned int), a_indices, GL_STATIC_DRAW);
 	return eboBuffer;
 }
 
-unsigned int CreateVBO(float* a_vertices)
+unsigned int CreateVBO(float* a_vertices, int a_verticeCount)
 {
 	unsigned int vboBuffer;
 	// Create a vbo and fill it with data.
 	glGenBuffers(1, &vboBuffer);
 	glBindBuffer(GL_ARRAY_BUFFER, vboBuffer);
-	glBufferData(GL_ARRAY_BUFFER, 12 * sizeof(float), a_vertices, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, a_verticeCount * sizeof(glm::vec3), a_vertices, GL_STREAM_DRAW);
 	return vboBuffer;
 }
 
@@ -405,4 +427,25 @@ void NormalizeVector(ImVec4& a_vector)
 		a_vector.w = 0;
 }
 
+void UpdateRotation(glm::vec3* data, glm::vec3* a_vertices, int a_verticesCount, float a_addedRotation)
+{
+	/*
+	mat4  -> 3 dimensions + 1 (it was there for a reason, just don't remember any more)
+	a_addedRotation -> conversion to radians as that is format for glm::rotate
+	vec3 -> dimensions of rotations, ie all dims with 1 in them will have the rotation applied to them, 0 means not.
+	*/
+	glm::mat4 identity = glm::mat4(1.0f);
+	glm::mat4 rotation = glm::rotate(identity, glm::radians(a_addedRotation), glm::vec3(0.0f, -0.0f, -1.0f));
+	
+	glm::vec4 a = identity * glm::vec4(5);
+
+	while (a_verticesCount--)
+	{
+		glm::vec4 calcVec = glm::vec4(a_vertices->x, a_vertices->y, a_vertices->z, 1.0f);
+		glm::vec3 newVec = glm::vec3(rotation * calcVec);
+		*data = newVec;
+		a_vertices++;
+		data++;
+	}
+}
 
