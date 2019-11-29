@@ -159,8 +159,7 @@ int main()
 
 		glfwPollEvents();
 		
-		//glClearColor(1 - clear_color.x, 1 - clear_color.y, 1 - clear_color.z, 1 - clear_color.w);
-		glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
+		glClearColor(1 - clear_color.x, 1 - clear_color.y, 1 - clear_color.z, 1 - clear_color.w);
 		glClear(GL_COLOR_BUFFER_BIT);
 	
 		getError(167);
@@ -251,7 +250,8 @@ void RenderImgui(bool &a_show_demo_window, bool &a_show_another_window, ImVec4 &
 
 		ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
 		ImGui::Checkbox("Demo Window", &a_show_demo_window);      // Edit bools storing our window open/close state
-		ImGui::Checkbox("Another Window", &a_show_another_window);
+		if (ImGui::Button("Another Window"))
+			a_show_another_window = true;
 
 		ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
 		ImGui::ColorEdit4("clear color", (float*)&a_clear_color); // Edit 3 floats representing a color
@@ -268,11 +268,15 @@ void RenderImgui(bool &a_show_demo_window, bool &a_show_another_window, ImVec4 &
 	// 3. Show another simple window.
 	if (a_show_another_window)
 	{
-		ImGui::Begin("Another Window", &a_show_another_window);   // Pass a pointer to our bool variable (the window will have a closing button that will clear the bool when clicked)
-		ImGui::Text("Hello from another window!");
-		if (ImGui::Button("Close Me"))
-			a_show_another_window = false;
-		ImGui::End();
+		ImGui::OpenPopup("Hello");
+		if (ImGui::BeginPopup("Hello"))
+		{
+			ImGui::BeginPopupContextWindow("Context");
+			if (ImGui::Button("Hello from another window!"))
+				a_show_another_window = false;
+
+			ImGui::EndPopup();
+		}
 	}
 }
 

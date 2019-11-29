@@ -19,12 +19,9 @@ link_directories($ENV{GLFW_LIBRARY})
 include_directories($ENV{GLM_INCLUDE_DIR})
 
 include_directories(dependencies/glad/include)
-#add_subdirectory(dependencies/glad/src)
 
 include_directories(dependencies/imgui)
 add_subdirectory(dependencies/imgui)
-
-include_directories(src/imgui)
 
 include_directories(src)
 
@@ -36,8 +33,6 @@ find_package(OpenGL REQUIRED)
 set (CPPFILES 
 	"src/shader.cpp"
 	"src/main.cpp"
-	"src/imgui/imgui_impl_glfw.cpp"
-	"src/imgui/imgui_impl_opengl3.cpp"
 	)
 
 add_executable(App ${CPPFILES} dependencies/GLAD/src/glad.c)
