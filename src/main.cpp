@@ -288,12 +288,9 @@ void UpdateProjectionMatrix()
 	if (curWidth != screenWidth || curHeight != screenHeight)
 	{
 		// Get the scale between the original and current sizes
-		//double scalarX = screenWidth / curWidth;
-		double scalar = (screenHeight / curHeight) != 0 ? (screenHeight / curHeight) : (curHeight / screenHeight);
-		
-		std::cout << scalar << std::endl;
 
-		//std::cout << "scaleX: " << scalarX << " scaleY: " << scalarY << std::endl;
+		// Also invert the scaling to not multiply anything by 0
+		double scalar = (screenHeight / curHeight) != 0 ? (screenHeight / curHeight) : (curHeight / screenHeight);
 
 		// Update the projection matrix and apply the scales
 		projectionMatrix = glm::ortho(0.0f, (float)(curWidth * scalar), 0.0f, (float)(curHeight* scalar), -1.0f, 1.0f);
@@ -301,5 +298,4 @@ void UpdateProjectionMatrix()
 
 	int matrixUniform = basicShaderProgram.getUniformLocation("u_Projection");
 	glUniformMatrix4fv(matrixUniform, 1, GL_FALSE, &projectionMatrix[0][0]);
-	getError(__LINE__);
 }
