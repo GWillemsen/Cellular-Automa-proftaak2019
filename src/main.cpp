@@ -22,8 +22,13 @@
 #include "shader.h"
 // #include "headers\renderItem\renderItem.h"
 
+int aspectRatio = (640 / 480);
+
 int screenWidth = 800;
 int screenHeight = 600;
+
+int curWidth = screenWidth;
+int curHeight = screenHeight;
 
 ImVec4 clearColor(0.0f, 0.0f, 0.0f, 1.0f);
 
@@ -44,6 +49,8 @@ void InitializeRender();
 void ProcessInput(GLFWwindow* a_window);
 void Update();
 void Render();
+
+void UpdateProjectionMatrix();
 
 int main()
 {
@@ -105,6 +112,13 @@ int main()
 // Handle window resize.
 void framebuffer_size_callback(GLFWwindow* a_window, int a_width, int a_height)
 {
+	// Update the current width, height and projection matrix
+	curWidth = a_width;
+	curHeight = a_height;
+
+	UpdateProjectionMatrix();
+
+	// Update the viewport
 	glViewport(0, 0, a_width, a_height);
 }
 
@@ -201,6 +215,8 @@ unsigned int vboBuffer; // Vertex buffer
 unsigned int eboBuffer; // Index buffer
 unsigned int shaderProgram; // Default shader
 
+glm::mat4 projectionMatrix;
+
 glm::vec4 vertices[] = {
 	// Triangle 1
 	glm::vec4(0.0f,  0.0f, 0.0f, 0.0f), // Index 0, Top left
@@ -233,10 +249,8 @@ void InitializeRender()
 
 	// Create a coordinate system that starts in the lower left corner
 	// ALWAYS USE FLOATS IN A PROJECTION MATRIX
-	glm::mat4 projectionMatrix = glm::ortho(0.0f, (float)screenWidth, 0.0f, (float)screenHeight, -1.0f, 1.0f);
-	int matrixUniform = basicShaderProgram.getUniformLocation("u_Projection");
-	glUniformMatrix4fv(matrixUniform, 1, GL_FALSE, &projectionMatrix[0][0]);
-	getError(__LINE__);
+	projectionMatrix = glm::ortho(0.0f, (float)screenWidth, 0.0f, (float)screenHeight, -1.0f, 1.0f);
+	UpdateProjectionMatrix();
 
 	vaoBuffer = CreateVAO();
 	vboBuffer = CreateVBO((float*)vertices, 4);
@@ -264,7 +278,28 @@ void Render()
 {
 	basicShaderProgram.use();
 	glBindVertexArray(vaoBuffer);
-	glPointSize(8);
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
+	getError(__LINE__);
+}
+
+void UpdateProjectionMatrix()
+{
+	// Update the scaling within the projection matrix if the viewport changes
+	if (curWidth != screenWidth || curHeight != screenHeight)
+	{
+		// Get the scale between the original and current sizes
+		//double scalarX = screenWidth / curWidth;
+		double scalar = (screenHeight / curHeight) != 0 ? (screenHeight / curHeight) : (curHeight / screenHeight);
+		
+		std::cout << scalar << std::endl;
+
+		//std::cout << "scaleX: " << scalarX << " scaleY: " << scalarY << std::endl;
+
+		// Update the projection matrix and apply the scales
+		projectionMatrix = glm::ortho(0.0f, (float)(curWidth * scalar), 0.0f, (float)(curHeight* scalar), -1.0f, 1.0f);
+	}
+
+	int matrixUniform = basicShaderProgram.getUniformLocation("u_Projection");
+	glUniformMatrix4fv(matrixUniform, 1, GL_FALSE, &projectionMatrix[0][0]);
 	getError(__LINE__);
 }
