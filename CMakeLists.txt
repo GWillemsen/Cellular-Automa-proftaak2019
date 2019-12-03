@@ -19,6 +19,7 @@ link_directories($ENV{GLFW_LIBRARY})
 include_directories($ENV{GLM_INCLUDE_DIR})
 
 include_directories(dependencies/glad/include)
+include_directories(dependencies/GLM)
 
 include_directories(dependencies/imgui)
 add_subdirectory(dependencies/imgui)

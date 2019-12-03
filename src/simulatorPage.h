@@ -5,7 +5,7 @@
 #include "world.h"
 #include "cell.h"
 
-class SimulatorPage : public Page, public Config
+class SimulatorPage : public Page
 {
 private:
 	Cell worldCells[];
