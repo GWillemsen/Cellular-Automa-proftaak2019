@@ -181,7 +181,7 @@ unsigned int CreateVBO(float* a_vertices, int a_verticeCount)
 	// Create a vbo and fill it with data.
 	glGenBuffers(1, &vboBuffer);
 	glBindBuffer(GL_ARRAY_BUFFER, vboBuffer);
-	glBufferData(GL_ARRAY_BUFFER, a_verticeCount * sizeof(glm::vec3), a_vertices, GL_STREAM_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, a_verticeCount * sizeof(glm::vec4), a_vertices, GL_STREAM_DRAW);
 	return vboBuffer;
 }
 
@@ -212,12 +212,11 @@ glm::vec4 vertices[] = {
 };
 
 unsigned int indices[] = {
-	2,2,2,2,2,2
 	// Triangle 1
-	// 0, 1, 2,
+	0, 1, 2,
 
 	// Triangle 2
-	// 	0, 3, 2
+	0, 3, 2
 };
 
 void InitializeRender()
@@ -232,7 +231,9 @@ void InitializeRender()
 	glUniform4f(colorUniform, 1.0f, 0.2f, 0.3f, 1.0f);
 	getError(__LINE__);
 
-	glm::mat4 projectionMatrix = glm::ortho(0, screenWidth, 0, screenHeight, -1, 1);
+	// Create a coordinate system that starts in the lower left corner
+	// ALWAYS USE FLOATS IN A PROJECTION MATRIX
+	glm::mat4 projectionMatrix = glm::ortho(0.0f, (float)screenWidth, 0.0f, (float)screenHeight, -1.0f, 1.0f);
 	int matrixUniform = basicShaderProgram.getUniformLocation("u_Projection");
 	glUniformMatrix4fv(matrixUniform, 1, GL_FALSE, &projectionMatrix[0][0]);
 	getError(__LINE__);
@@ -264,6 +265,6 @@ void Render()
 	basicShaderProgram.use();
 	glBindVertexArray(vaoBuffer);
 	glPointSize(8);
-	glDrawElements(GL_POINTS, 6, GL_UNSIGNED_INT, (void*)0);
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
 	getError(__LINE__);
 }
