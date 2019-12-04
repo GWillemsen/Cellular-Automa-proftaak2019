@@ -1,9 +1,10 @@
 #include <iostream>
 
 #include "page.h"
-#include "config.h"
-#include "world.h"
 #include "cell.h"
+
+#ifndef __SIMULATORPAGE__
+#define __SIMULATORPAGE__
 
 class SimulatorPage : public Page
 {
@@ -20,3 +21,5 @@ private:
 	void DisposeOpenGL();
 	void DisposeImGui();
 };
+
+#endif

@@ -4,6 +4,9 @@
 #include "premadeBlock.h"
 #include "config.h"
 
+#ifndef __WORLD__
+#define __WORLD__
+
 class World : public Config
 {
 private:
@@ -38,3 +41,5 @@ public:
 	Cell* GetCellAt(long a_cellX, long a_cellY);
 	void LoadBlockAt(PremadeBlock a_premadeBlock, long a_cellX, long a_cellY);
 };
+
+#endif // !__WORLD__

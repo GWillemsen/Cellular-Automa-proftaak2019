@@ -1,4 +1,5 @@
 #include "grid.h"
+#include "shader.h"
 
 void Grid::Initialize(Shader a_shader, int a_screenWidth, int a_screenHeight)
 {

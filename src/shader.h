@@ -2,6 +2,9 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 
+#ifndef __SHADER__
+#define __SHADER__
+
 // Creates a new shader program.
 class Shader
 {
@@ -26,3 +29,5 @@ private:
     std::string loadShaderSource(std::string a_pathToShaderSourceFile);
     bool shaderCompiled(unsigned int a_id);
 };
+
+#endif // !__SHADER__

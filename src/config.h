@@ -1,5 +1,7 @@
 #include <iostream>
 #include <glm/glm.hpp>
+#ifndef __CONFIG__
+#define __CONFIG__
 
 static class Config
 {
@@ -13,5 +15,6 @@ public:
 
 private:
 	Config() {}; // Constructor
-	~Config() {}; // De-structor
 };
+
+#endif // !__CONFIG__

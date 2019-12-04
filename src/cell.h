@@ -1,5 +1,8 @@
 #include <iostream>
 
+#ifndef __CELL__
+#define __CELL__
+
 enum CellState
 {
 	Head = 0,
@@ -19,3 +22,5 @@ public:
 	void InitRender(long a_cellX, long a_cellY);
 	void Render();
 };
+
+#endif // __CELL__
