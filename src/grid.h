@@ -3,6 +3,7 @@
 #include <GLM/glm.hpp>
 #include <GLM/ext/matrix_projection.hpp>
 #include <glm/ext/matrix_clip_space.hpp> // glm::perspective
+#include "shader.h"
 
 class Grid
 {

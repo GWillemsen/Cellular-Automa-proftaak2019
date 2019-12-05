@@ -1,4 +1,12 @@
+#include <thread>
+#include <iostream>
+#include <GLFW\glfw3.h>
 #include "simulatorPage.h"
+
+SimulatorPage::SimulatorPage(GLFWwindow *a_window) 
+{
+
+}
 
 void SimulatorPage::InitOpenGL()
 {
@@ -39,3 +47,9 @@ void SimulatorPage::DisposeImGui()
 {
 	// Removes Dear ImGUI
 }
+
+Page* SimulatorPage::Run()
+{
+	return nullptr;
+}
+

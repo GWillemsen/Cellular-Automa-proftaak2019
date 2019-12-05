@@ -3,6 +3,7 @@
 #include "cell.h"
 #include "premadeBlock.h"
 #include "config.h"
+#include "cell.h"
 
 #ifndef __WORLD__
 #define __WORLD__
@@ -14,7 +15,7 @@ private:
 	bool cancelSimulation = false;
 
 public:
-	Cell cells[];
+	Cell cells[1];
 
 	int lastRenderDuration = 0;
 	unsigned long currentGeneration = 0;
@@ -38,7 +39,7 @@ public:
 	void ResetSimulation();
 	void UpdateSimulation();
 
-	Cell* GetCellAt(long a_cellX, long a_cellY);
+	Cell *GetCellAt(long a_cellX, long a_cellY);
 	void LoadBlockAt(PremadeBlock a_premadeBlock, long a_cellX, long a_cellY);
 };
 

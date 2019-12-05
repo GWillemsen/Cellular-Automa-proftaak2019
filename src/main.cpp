@@ -22,6 +22,7 @@
 #include "shader.h"
 #include "config.h"
 #include "grid.h"
+#include "simulatorPage.h"
 // #include "headers\renderItem\renderItem.h"
 
 int aspectRatio = (640 / 480);

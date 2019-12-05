@@ -17,7 +17,7 @@ void Grid::Initialize(Shader a_shader, int a_screenWidth, int a_screenHeight)
 
 	glGenBuffers(1, &this->vboBuffer);
 	glBindBuffer(GL_ARRAY_BUFFER, this->vboBuffer);
-	glBufferData(GL_ARRAY_BUFFER, glm::vec2 * (this->lineAmount / 2), this->lines, GL_STATIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec2) * (this->lineAmount / 2), this->lines, GL_STATIC_DRAW);
 
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2), (void*)0);
 	glEnableVertexAttribArray(0);
@@ -52,6 +52,7 @@ void Grid::Update(int a_screenWidth, int a_screenHeight)
 	const int totalLineAmount = (m_horizontalLinesAmount + m_verticalLinesAmount) * 2;
 	this->lineAmount = totalLineAmount;
 
+	delete[] this->lines;
 	// Update the lines array.
 	this->lines = new glm::vec2[totalLineAmount];
 

@@ -34,9 +34,9 @@ find_package(OpenGL REQUIRED)
 set (CPPFILES 
 	"src/shader.cpp"
 	"src/main.cpp"
+	"src/grid.cpp"
 	"src/cell.cpp"
 	"src/loadPage.cpp"
-	"src/page.cpp"
 	"src/premadeBlock.cpp"
 	"src/shader.cpp"
 	"src/simulatorPage.cpp"

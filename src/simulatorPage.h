@@ -1,4 +1,5 @@
 #include <iostream>
+#include <GLFW\glfw3.h>
 
 #include "page.h"
 #include "cell.h"
@@ -8,8 +9,14 @@
 
 class SimulatorPage : public Page
 {
+public:
+	SimulatorPage(GLFWwindow* a_window);
+
 private:
 	Cell worldCells[];
+
+public:
+	Page *Run();
 
 private:
 	void InitOpenGL();

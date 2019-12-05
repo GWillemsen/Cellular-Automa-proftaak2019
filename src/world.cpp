@@ -1,4 +1,5 @@
 #include "world.h"
+#include "cell.h"
 
 // Private methods
 void World::LoadFile()
@@ -49,9 +50,10 @@ void World::UpdateSimulation()
 	// Write simulation logic here...
 }
 
-Cell* World::GetCellAt(long a_cellX, long a_cellY)
+Cell *World::GetCellAt(long a_cellX, long a_cellY)
 {
 	// Retrieves the pointer of a cell at a specific grid coordinate
+	return nullptr;
 }
 
 void World::LoadBlockAt(PremadeBlock a_premadeBlock, long a_cellX, long a_cellY)
