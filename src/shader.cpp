@@ -82,7 +82,6 @@ int Shader::getUniformLocation(std::string a_uniformName)
     return m_location;
 }
 
-
 void Shader::use()
 {
     glUseProgram(this->shaderProgram);
@@ -137,4 +136,12 @@ bool Shader::shaderCompiled(unsigned int a_id)
     }
 
     return true;
+}
+
+unsigned int Shader::getProgramId()
+{
+	if (!this->compiledShaderProgram)
+		return this->compile();
+	else
+		return this->shaderProgram;
 }

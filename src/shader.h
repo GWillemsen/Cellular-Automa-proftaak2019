@@ -17,6 +17,8 @@ private:
     unsigned int fragmentShaderID;
     const char* fragmentShaderSource;
 
+	bool compiledShaderProgram;
+
 public:
     // Sets the vertex shader of this program.
     bool setVertexShader(std::string a_vertexShaderSource);
@@ -24,6 +26,7 @@ public:
     int getUniformLocation(std::string a_uniformName);
     int compile();
     void use();
+	unsigned int getProgramId();
 
 private:
     std::string loadShaderSource(std::string a_pathToShaderSourceFile);
