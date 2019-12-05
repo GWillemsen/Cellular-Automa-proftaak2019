@@ -12,8 +12,20 @@ SimulatorPage::SimulatorPage(GLFWwindow* a_window) : Page(a_window)
 	this->shaders = Shader();
 
 	this->shaders.setVertexShader("shaders/basicVertexShader.glsl");
+	getError(__LINE__);
 	this->shaders.setFragmentShader("shaders/basicFragmentShader.glsl");
+	getError(__LINE__);
 	this->shaders.compile();
+	getError(__LINE__);
+}
+
+void SimulatorPage::getError(int a_line)
+{
+	GLenum m_error = glGetError();
+	if (m_error != GL_NO_ERROR)
+		std::cout << m_error << " At line: " << a_line << std::endl;
+	/*else
+		std::cout << "No error at: " << a_line << std::endl;*/
 }
 
 SimulatorPage::SimulatorPage(GLFWwindow* a_window, Shader a_shader) : Page(a_window)
@@ -24,58 +36,61 @@ SimulatorPage::SimulatorPage(GLFWwindow* a_window, Shader a_shader) : Page(a_win
 void SimulatorPage::InitOpenGL()
 {
 	// Initializes OpenGL
+	glm::vec3 m_vertices[] = {
+		// Triangle 1
+		glm::vec3(-0.5f, 0.5f, 0.0f), // Index 0, Top left
+		glm::vec3(-0.5f, -0.5f, 0.0f), // Index 1, Bottom left
+		glm::vec3(0.5f, -0.5f, 0.0f), // Index 2, Bottom right
 
+		// Triangle 2
+		glm::vec3(0.5f, 0.5f, 0.0f)  // Index 3, Top right
+	};
+
+	unsigned int m_indices[] = {
+		// Triangle 1
+		0, 1, 2,
+
+		// Triangle 2
+		0, 3, 2
+	};
+	getError(__LINE__);
 	this->colorUniform = this->shaders.getUniformLocation("u_Color");
-	glUniform4f(this->colorUniform, this->lineColor.x, this->lineColor.y, this->lineColor.z, 1.0f);
+	getError(__LINE__);
+	//glUniform4f(this->colorUniform, (float)this->lineColor.x, this->lineColor.y, this->lineColor.z, 1.0f);
+	glUniform4f(this->colorUniform, 0.0f, 1.0f, 0.0f, 1.0f); // this->lineColor.x, this->lineColor.y, this->lineColor.z, 1.0f);
+	getError(__LINE__);
 
 	// Update the grid lines
 	//this->Update(this->screenWidth, this->screenHeight);
 
 	// Create a VAO and a VBO
 	glGenVertexArrays(1, &this->vaoBuffer);
+	getError(__LINE__);
 	glBindVertexArray(this->vaoBuffer);
+	getError(__LINE__);
 
 	glGenBuffers(1, &this->vboBuffer);
+	getError(__LINE__);
 	glBindBuffer(GL_ARRAY_BUFFER, this->vboBuffer);
-	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec2) * (this->lineAmount / 2), this->lines, GL_STATIC_DRAW);
+	getError(__LINE__);
+	glBufferData(GL_ARRAY_BUFFER, 4 * sizeof(glm::vec3), m_vertices, GL_STATIC_DRAW);
+	getError(__LINE__);
 
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2), (void*)0);
+
+	unsigned int eboBuffer;
+	glGenBuffers(1, &eboBuffer);
+	getError(__LINE__);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, eboBuffer);
+	getError(__LINE__);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(unsigned int), m_indices, GL_STATIC_DRAW);
+	getError(__LINE__);
+
+
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_TRUE, sizeof(glm::vec3), (void*)0);
+	getError(__LINE__);
 	glEnableVertexAttribArray(0);
+	getError(__LINE__);
 
-
-	// Calculate the amount of lines the X and Y dimensions need.
-	// We add 2 extra lines on each dimension in order to create a smooth scrolling effect.
-	int m_horizontalLinesAmount = (this->screenWidth / this->colSize) + 2;
-	int m_verticalLinesAmount = (this->screenHeight / this->colSize) + 2;
-
-	// Multiply the total line amount since each line has 2 vertices
-	const int totalLineAmount = (m_horizontalLinesAmount + m_verticalLinesAmount) * 2;
-	this->lineAmount = totalLineAmount;
-
-	if (this->lines)
-		delete[] this->lines;
-	// Update the lines array.
-	this->lines = new glm::vec2[totalLineAmount];
-
-	for (int i = 0; i < m_horizontalLinesAmount; i += 2)
-	{
-		this->lines[i] = glm::vec2(this->colSize * i, 0.0);
-
-		// Make sure that the loop does not get out of bounds
-		if (i < totalLineAmount)
-			this->lines[i + 1] = glm::vec2(this->colSize * i, (float)(this->colSize * m_horizontalLinesAmount));
-	}
-
-	int m_loopOffset = m_horizontalLinesAmount + 1;
-
-	for (int i = 1; i < m_verticalLinesAmount + 1; i += 2)
-	{
-		this->lines[m_loopOffset + i] = glm::vec2(0.0f, this->colSize * i);
-
-		// Make sure that the loop does not get out of bounds
-		if ((m_loopOffset + i) < totalLineAmount)
-			this->lines[m_loopOffset + i + 1] = glm::vec2((float)(this->colSize * m_verticalLinesAmount), this->colSize * i);
-	}
 }
 
 void SimulatorPage::InitImGui()
@@ -91,25 +106,30 @@ void SimulatorPage::InitSimulator()
 void SimulatorPage::RenderOpenGL()
 {
 	// Renders graphics through OpenGL
-	this->shaders.use();
 
-	glBindVertexArray(this->vaoBuffer);
-	glBindBuffer(GL_ARRAY_BUFFER, this->vboBuffer);
-
-	glClearColor(1, 0, 0, 1);
+	getError(__LINE__);
+	glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
-
-	glUniform4f(this->colorUniform, this->lineColor.x, this->lineColor.y, this->lineColor.z, 1.0f);
-	//glDrawArraysInstanced(GL_LINES, 0, this->lineAmount, this->lineAmount);
-
-
-	float scalar = (600 / this->screenHeight) != 0 ? (600 / this->screenHeight) : (screenHeight / 600);
+	getError(__LINE__);
 	
-	// Update the projection matrix and apply the scales
-	projectionMatrix = glm::ortho(0.0f, screenWidth * scalar, 0.0f, screenHeight * scalar, -1.0f, 1.0f);
+	//glBindBuffer(GL_ARRAY_BUFFER, this->vboBuffer);
 
+	this->shaders.use();
+	getError(__LINE__);
+
+	glUniform4f(this->colorUniform, 0.0f, 1.0f, 0.0f, 1.0f); // this->lineColor.x, this->lineColor.y, this->lineColor.z, 1.0f);
+	glBindVertexArray(this->vaoBuffer);
+	getError(__LINE__);
+	
+	// Update the projection matrix with the scales
+	float scalar = (600 / this->screenHeight) != 0 ? (600 / this->screenHeight) : (screenHeight / 600);	
+	projectionMatrix = glm::ortho(0.0f, screenWidth * scalar, 0.0f, screenHeight * scalar, -1.0f, 1.0f);
 	int matrixUniform = this->shaders.getUniformLocation("u_Projection");
+	getError(__LINE__);
 	glUniformMatrix4fv(matrixUniform, 1, GL_FALSE, &projectionMatrix[0][0]);
+	
+	//glDrawArraysInstanced(GL_LINES, 0, this->lineAmount, this->lineAmount);
+	glDrawArrays(GL_TRIANGLES, 0, 0);
 }
 
 void SimulatorPage::RenderImGui()
@@ -134,14 +154,18 @@ void SimulatorPage::DisposeImGui()
 
 Page* SimulatorPage::Run()
 {
+	getError(__LINE__);
 	this->InitOpenGL();
+	getError(__LINE__);
 	bool m_exit = false;
 	Page* m_nextPage = nullptr;
 	while (!m_exit && !glfwWindowShouldClose(this->window))
 	{
+	getError(__LINE__);
 		glfwPollEvents();
 		this->RenderOpenGL();
 		glfwSwapBuffers(this->window);
+	getError(__LINE__);
 
 		// If the escape key gets pressed, close the window.
 		if (glfwGetKey(this->window, GLFW_KEY_ESCAPE) == GLFW_PRESS)

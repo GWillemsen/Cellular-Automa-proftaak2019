@@ -43,6 +43,7 @@ private:
 	void UpdateSimulation();
 	void DisposeOpenGL();
 	void DisposeImGui();
+	void getError(int a_line);
 };
 
 #endif
