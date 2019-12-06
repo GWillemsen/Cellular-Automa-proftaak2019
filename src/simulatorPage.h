@@ -21,7 +21,7 @@ private:
 	World worldCells[1];
 
 	GLuint colorUniform;
-	glm::mat4 projectionMatrix;
+	glm::mat4 projectionMatrix = glm::ortho(0.0f, 1.0f, 0.0f, 1.0f);
 
 	GLuint vaoBuffer;
 	GLuint vboBuffer;
@@ -29,10 +29,13 @@ private:
 	Shader shaders;
 
 	// Grid
+	Shader gridShader;
+	glm::vec3 lineColor = glm::vec3(1.5f, 1.5f, 1.5f);
 	int colSize;
-	glm::vec2* lines;
-	glm::vec3 lineColor;
-	int lineAmount;
+	
+	GLuint gridVAO;
+	GLuint gridRowVBO;
+	GLuint gridColumnVBO;
 
 public:
 	Page *Run();

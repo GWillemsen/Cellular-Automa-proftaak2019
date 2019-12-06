@@ -24,9 +24,7 @@ SimulatorPage::SimulatorPage(GLFWwindow* a_window) : Page(a_window, "SimulatorPa
 	this->GetError(__LINE__);
 
 	this->colSize = 32;
-	this->lines = nullptr;
 	this->lineColor = glm::vec3(0.4f, 0.4f, 0.4f);
-	this->lineAmount = 0;
 	this->colorUniform = 0; // glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
 	this->projectionMatrix = glm::mat4(1.0f);
 
@@ -95,6 +93,7 @@ void SimulatorPage::InitOpenGL()
 	glEnableVertexAttribArray(0);
 	this->GetError(__LINE__);
 
+	this->InitGrid();
 }
 
 void SimulatorPage::InitImGui()
@@ -117,6 +116,8 @@ void SimulatorPage::RenderOpenGL()
 	this->GetError(__LINE__);
 
 	//glBindBuffer(GL_ARRAY_BUFFER, this->vboBuffer);
+	this->RenderGrid();
+	return;
 
 	this->shaders.use();
 	this->GetError(__LINE__);
@@ -126,10 +127,10 @@ void SimulatorPage::RenderOpenGL()
 	this->GetError(__LINE__);
 
 	// Update the projection matrix with the scales
-	projectionMatrix = glm::translate(glm::vec3(1.0f, 1.0f, 0.0f)) * glm::ortho(0.0f, 1.0f, 0.0f, 1.0f);
+	this->projectionMatrix = glm::ortho(0.0f, 1.0f, 0.0f, 1.0f);
 	int matrixUniform = this->shaders.getUniformLocation("u_Projection");
 	this->GetError(__LINE__);
-	glUniformMatrix4fv(matrixUniform, 1, GL_FALSE, &projectionMatrix[0][0]);
+	glUniformMatrix4fv(matrixUniform, 1, GL_FALSE, &this->projectionMatrix[0][0]);
 
 	//glDrawArraysInstanced(GL_LINES, 0, this->lineAmount, this->lineAmount);
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
@@ -167,6 +168,7 @@ Page* SimulatorPage::Run()
 		this->GetError(__LINE__);
 		glfwPollEvents();
 		this->RenderOpenGL();
+		this->GetError(__LINE__);
 		glfwSwapBuffers(this->window);
 		this->GetError(__LINE__);
 
@@ -180,5 +182,85 @@ Page* SimulatorPage::Run()
 // Grid system
 void SimulatorPage::InitGrid()
 {
+	glm::vec2 m_gridColumns[] = {
+		glm::vec2(0.0f, 0.0f),
+		glm::vec2(1.0f, 0.0f)
+	};
 
+	glm::vec2 m_gridRows[] = {
+		glm::vec2(0.0f, 0.0f),
+		glm::vec2(0.0f, 1.0f)
+	};
+
+	// Create and compile a new shader
+	this->gridShader.setVertexShader("shaders/gridVertexShader.glsl");
+	this->gridShader.setFragmentShader("shaders/basicFragmentShader.glsl");
+	this->gridShader.compile();
+
+	this->gridShader.use();
+
+	this->projectionMatrix = glm::ortho(0.0f, 1.0f, 0.0f, 1.0f);
+	glUniformMatrix4fv(gridShader.getUniformLocation("u_Projection"), 1, GL_FALSE, &this->projectionMatrix[0][0]);
+
+	// Create and bind a new VAO
+	glGenVertexArrays(1, &this->gridVAO);
+	glBindVertexArray(this->gridVAO);
+	
+	// Bind grid columns
+	glGenBuffers(1, &this->gridColumnVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, this->gridColumnVBO);
+
+	// Add data
+	glBufferData(GL_ARRAY_BUFFER, 2 * sizeof(glm::vec2), m_gridColumns, GL_STATIC_DRAW);
+
+	// Bind grid rows
+	glGenBuffers(1, &this->gridRowVBO);
+	glBindBuffer(GL_ARRAY_BUFFER, this->gridRowVBO);
+
+	// Add data
+	glBufferData(GL_ARRAY_BUFFER, 2 * sizeof(glm::vec2), m_gridRows, GL_STATIC_DRAW);
+
+	// Define data layout
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2), (void*)0);
+	glEnableVertexAttribArray(0);
+
+	glBindVertexArray(0);
 }
+
+void SimulatorPage::RenderGrid()
+{
+	this->gridShader.use();
+
+	int colorUniform = gridShader.getUniformLocation("u_Color");
+	int matrixUniform = gridShader.getUniformLocation("u_Projection");
+	int colCountUniform = gridShader.getUniformLocation("u_ColCount");
+	int colOrRowUniform = gridShader.getUniformLocation("u_ColOrRow");
+
+	// Set the line color
+	glUniform4f(colorUniform, this->lineColor.x, this->lineColor.y, this->lineColor.z, 1.0f);
+	//glUniformMatrix4fv(matrixUniform, 1, GL_FALSE, &this->projectionMatrix[0][0]);
+
+	// Bind VAO
+	glBindVertexArray(this->gridVAO);
+	glLineWidth(4);
+	glPointSize(4);
+
+	// Prepare to draw rows
+	int loopAmount = (this->screenHeight / this->colSize);
+	glUniform1i(colCountUniform, loopAmount);
+
+	// Works
+	glUniform1i(colOrRowUniform, 1); // Start rendering rows (Vertical lines)
+	glBindBuffer(GL_ARRAY_BUFFER, this->gridRowVBO);
+	glDrawArraysInstanced(GL_LINES, 0, GL_UNSIGNED_INT, loopAmount);
+
+	// Not works
+	// Prepare to draw columns
+	loopAmount = (this->screenWidth/ this->colSize);
+	glUniform1i(colCountUniform, loopAmount);
+
+	glUniform1i(colOrRowUniform, 0); // Start rendering rows (Vertical lines)
+	glBindBuffer(GL_ARRAY_BUFFER, this->gridRowVBO);
+	glDrawArraysInstanced(GL_LINES, 0, GL_UNSIGNED_INT, loopAmount);
+}
+
