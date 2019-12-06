@@ -6,6 +6,7 @@
 #include "simulatorPage.h"
 #include "shader.h"
 #include "config.h"
+#include <glm\gtx\transform.hpp>
 
 SimulatorPage::SimulatorPage(GLFWwindow* a_window) : Page(a_window, "SimulatorPage")
 {
@@ -54,7 +55,7 @@ void SimulatorPage::InitOpenGL()
 		// Triangle 2
 		0, 3, 2
 	};
-	//this->shaders.use();
+	this->shaders.use();
 	this->GetError(__LINE__);
 	this->colorUniform = this->shaders.getUniformLocation("u_Color");
 	this->GetError(__LINE__);
@@ -121,14 +122,13 @@ void SimulatorPage::RenderOpenGL()
 	this->GetError(__LINE__);
 
 	// Update the projection matrix with the scales
-	float scalar = (600 / this->screenHeight) != 0 ? (600 / this->screenHeight) : (screenHeight / 600);
-	projectionMatrix = glm::ortho(0.0f, screenWidth * scalar, 0.0f, screenHeight * scalar, -1.0f, 1.0f);
+	projectionMatrix = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f);
 	int matrixUniform = this->shaders.getUniformLocation("u_Projection");
 	this->GetError(__LINE__);
 	glUniformMatrix4fv(matrixUniform, 1, GL_FALSE, &projectionMatrix[0][0]);
 
 	//glDrawArraysInstanced(GL_LINES, 0, this->lineAmount, this->lineAmount);
-	glDrawArrays(GL_TRIANGLES, 0, 0);
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
 }
 
 void SimulatorPage::RenderImGui()

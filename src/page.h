@@ -30,7 +30,6 @@ public:
 		this->screenWidth = a_newWidth;
 	}
 
-
 	virtual void GetError(int a_line)
 	{
 		GLenum m_error = glGetError();

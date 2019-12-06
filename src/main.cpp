@@ -34,8 +34,8 @@ unsigned int CreateVAO();
 unsigned int CreateEBO(unsigned int* indices, int a_indiceCount);
 
 Page* m_nextPage = nullptr;
-int screenWidth = 800;
-int screenHeight = 600;
+int screenWidth = 1920;
+int screenHeight = 1080;
 
 int main()
 {
@@ -97,8 +97,15 @@ void getError(int a_line)
 
 GLFWwindow* CreateWindow()
 {
-	GLFWwindow* window = glfwCreateWindow(screenWidth, screenHeight, "LearnOpenGL", NULL, NULL);
 
+	GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+	const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+
+	glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
+	glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
+	glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
+
+	GLFWwindow* window = glfwCreateWindow(mode->width, mode->height, "LearnOpenGL", monitor, NULL);
 	// Make sure that the window is created.
 	if (window == NULL)
 	{
@@ -118,9 +125,13 @@ void InitGLFW()
 	// ---
 	glfwInit();
 
+
 	// Tell GLFW that we want to use OpenGL 3.3
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+
+	glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
+	glfwWindowHint(GLFW_MAXIMIZED, GL_TRUE);
 
 	// Tell GLFW that we want to use the OpenGL's core profile.
 	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
