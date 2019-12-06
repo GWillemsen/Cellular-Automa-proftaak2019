@@ -4,6 +4,7 @@
 #include <glm/ext/matrix_clip_space.hpp> // glm::perspective
 
 #include "page.h"
+#include "world.h"
 #include "cell.h"
 #include "shader.h"
 
@@ -17,12 +18,8 @@ public:
 	SimulatorPage(GLFWwindow* a_window, Shader a_shader);
 
 private:
-	Cell worldCells[1];
-	int colSize;
+	World worldCells[1];
 
-	glm::vec2* lines;
-	glm::vec3 lineColor;
-	int lineAmount;
 	GLuint colorUniform;
 	glm::mat4 projectionMatrix;
 
@@ -30,6 +27,12 @@ private:
 	GLuint vboBuffer;
 
 	Shader shaders;
+
+	// Grid
+	int colSize;
+	glm::vec2* lines;
+	glm::vec3 lineColor;
+	int lineAmount;
 
 public:
 	Page *Run();
@@ -43,6 +46,10 @@ private:
 	void UpdateSimulation();
 	void DisposeOpenGL();
 	void DisposeImGui();
+
+	// Grid
+	void InitGrid();
+	void RenderGrid();
 };
 
 #endif

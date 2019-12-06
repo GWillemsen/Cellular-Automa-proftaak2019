@@ -8,6 +8,10 @@
 #include "config.h"
 #include <glm\gtx\transform.hpp>
 
+// Grid variables
+int gridWidth = 800;
+int gridHeight = 600;
+
 SimulatorPage::SimulatorPage(GLFWwindow* a_window) : Page(a_window, "SimulatorPage")
 {
 	this->shaders = Shader();
@@ -40,12 +44,12 @@ void SimulatorPage::InitOpenGL()
 	// Initializes OpenGL
 	glm::vec3 m_vertices[] = {
 		// Triangle 1
-		glm::vec3(-0.5f, 0.5f, 0.0f), // Index 0, Top left
-		glm::vec3(-0.5f, -0.5f, 0.0f), // Index 1, Bottom left
-		glm::vec3(0.5f, -0.5f, 0.0f), // Index 2, Bottom right
+		glm::vec3(0.0f, 0.0f, 0.0f), // Index 0, Top left
+		glm::vec3(0.0f, 0.15f, 0.0f), // Index 1, Bottom left
+		glm::vec3(0.10f, 0.15f, 0.0f), // Index 2, Bottom right
 
 		// Triangle 2
-		glm::vec3(0.5f, 0.5f, 0.0f)  // Index 3, Top right
+		glm::vec3(0.10f, 0.0f, 0.0f)  // Index 3, Top right
 	};
 
 	unsigned int m_indices[] = {
@@ -108,7 +112,7 @@ void SimulatorPage::RenderOpenGL()
 	// Renders graphics through OpenGL
 
 	this->GetError(__LINE__);
-	glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
 	this->GetError(__LINE__);
 
@@ -122,7 +126,7 @@ void SimulatorPage::RenderOpenGL()
 	this->GetError(__LINE__);
 
 	// Update the projection matrix with the scales
-	projectionMatrix = glm::ortho(-1.0f, 1.0f, -1.0f, 1.0f);
+	projectionMatrix = glm::translate(glm::vec3(1.0f, 1.0f, 0.0f)) * glm::ortho(0.0f, 1.0f, 0.0f, 1.0f);
 	int matrixUniform = this->shaders.getUniformLocation("u_Projection");
 	this->GetError(__LINE__);
 	glUniformMatrix4fv(matrixUniform, 1, GL_FALSE, &projectionMatrix[0][0]);
@@ -166,10 +170,15 @@ Page* SimulatorPage::Run()
 		glfwSwapBuffers(this->window);
 		this->GetError(__LINE__);
 
-		// If the escape key gets pressed, close the window.
+		// If the escape key gets pressed, close the window
 		if (glfwGetKey(this->window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 			glfwSetWindowShouldClose(this->window, true);
 	}
 	return m_nextPage;
 }
 
+// Grid system
+void SimulatorPage::InitGrid()
+{
+
+}
