@@ -42,6 +42,9 @@ set (CPPFILES
 	"src/world.cpp"
 	)
 
+configure_file(src/shaders/basicVertexShader.glsl shaders/basicVertexShader.glsl)
+configure_file(src/shaders/basicFragmentShader.glsl shaders/basicFragmentShader.glsl)
+
 add_executable(App ${CPPFILES} dependencies/GLAD/src/glad.c)
 
 
