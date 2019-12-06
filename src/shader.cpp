@@ -75,9 +75,9 @@ int Shader::compile()
     return this->shaderProgram;
 }
 
-int Shader::getUniformLocation(std::string a_uniformName)
+GLint Shader::getUniformLocation(std::string a_uniformName)
 {
-    int m_location = glGetUniformLocation(this->shaderProgram, a_uniformName.c_str());
+	GLint m_location = glGetUniformLocation(this->shaderProgram, a_uniformName.c_str());
 
     return m_location;
 }

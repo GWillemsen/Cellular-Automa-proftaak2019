@@ -18,16 +18,16 @@ public:
 
 private:
 	Cell worldCells[1];
-	int colSize = 32;
+	int colSize;
 
-	glm::vec2* lines = nullptr;
-	glm::vec3 lineColor = glm::vec3(0.4f, 0.4f, 0.4f);
-	int lineAmount = 0;
-	int colorUniform;
+	glm::vec2* lines;
+	glm::vec3 lineColor;
+	int lineAmount;
+	GLuint colorUniform;
 	glm::mat4 projectionMatrix;
 
-	unsigned int vaoBuffer;
-	unsigned int vboBuffer;
+	GLuint vaoBuffer;
+	GLuint vboBuffer;
 
 	Shader shaders;
 
@@ -43,7 +43,6 @@ private:
 	void UpdateSimulation();
 	void DisposeOpenGL();
 	void DisposeImGui();
-	void getError(int a_line);
 };
 
 #endif

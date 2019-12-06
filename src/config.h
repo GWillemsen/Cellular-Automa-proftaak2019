@@ -3,7 +3,7 @@
 #ifndef __CONFIG__
 #define __CONFIG__
 
-static class Config
+class Config
 {
 public:
 	glm::vec4 backgroundColor = glm::vec4(0.017241379310344827f, 0.017241379310344827f, 0.017241379310344827f, 1.0f); // Color of the background
