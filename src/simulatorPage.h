@@ -33,8 +33,9 @@ private:
 	glm::vec3 lineColor = glm::vec3(1.5f, 1.5f, 1.5f);
 	int colSize;
 	
-	GLuint gridVAO;
+	GLuint gridRowVAO;
 	GLuint gridRowVBO;
+	GLuint gridColumnVAO;
 	GLuint gridColumnVBO;
 
 public:
