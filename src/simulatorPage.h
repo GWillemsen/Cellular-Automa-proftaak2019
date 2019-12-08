@@ -18,7 +18,7 @@ public:
 	SimulatorPage(GLFWwindow* a_window, Shader a_shader);
 
 private:
-	World worldCells[1];
+	World worldCells;
 
 	GLuint colorUniform;
 	glm::mat4 projectionMatrix;

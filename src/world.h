@@ -1,4 +1,5 @@
 #include <iostream>
+#include <map>
 
 #include "cell.h"
 #include "premadeBlock.h"
@@ -8,14 +9,14 @@
 #ifndef __WORLD__
 #define __WORLD__
 
-class World : public Config
+class World
 {
 private:
 	std::string filePath;
 	bool cancelSimulation = false;
 
 public:
-	Cell cells[1];
+	std::map<std::pair<int, int>, Cell*> cells;
 
 	int lastRenderDuration = 0;
 	unsigned long currentGeneration = 0;
@@ -28,8 +29,9 @@ public:
 private:
 	void LoadFile();
 	void EmptyWorld();
-
+	void IncrementNeighbors(int x, int y);
 public:
+	void UpdateSimulation();
 	void Save(std::string a_worldName);
 	void Open(std::string a_filePath);
 	void SaveAsTemplate(std::string a_worldName);
@@ -37,7 +39,6 @@ public:
 	void StartSimulation();
 	void PauzeSimulation();
 	void ResetSimulation();
-	void UpdateSimulation();
 
 	Cell *GetCellAt(long a_cellX, long a_cellY);
 	void LoadBlockAt(PremadeBlock a_premadeBlock, long a_cellX, long a_cellY);
