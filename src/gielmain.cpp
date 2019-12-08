@@ -160,12 +160,15 @@ void printCells()
 		}
 		m_stat[m_cl.second->x][m_cl.second->y] = m_type;
 	}
-	for (int m_x = 0; m_x < 10; m_x++)
+	std::string data = "";
+	for (int m_x = 0; m_x < 9; m_x++)
 	{
 		for (int m_y = 0; m_y < 20; m_y++)
 		{
-			cout << m_stat[m_x][m_y] << "  ";
+			data += m_stat[m_x][m_y];
+			data.append("  ");
 		}
-		cout << endl;
+		data.append("\r\n");
 	}
+	cout << data;
 }
