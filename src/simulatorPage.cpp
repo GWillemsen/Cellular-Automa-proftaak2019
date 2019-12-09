@@ -117,7 +117,6 @@ void SimulatorPage::RenderOpenGL()
 
 	//glBindBuffer(GL_ARRAY_BUFFER, this->vboBuffer);
 	this->RenderGrid();
-	return;
 
 	this->shaders.use();
 	this->GetError(__LINE__);
@@ -127,7 +126,7 @@ void SimulatorPage::RenderOpenGL()
 	this->GetError(__LINE__);
 
 	// Update the projection matrix with the scales
-	this->projectionMatrix = glm::ortho(0.0f, 1.0f, 0.0f, 1.0f);
+	this->projectionMatrix = glm::ortho(0.0f, 1.0f, 1.0f, 0.0f);
 	int matrixUniform = this->shaders.getUniformLocation("u_Projection");
 	this->GetError(__LINE__);
 	glUniformMatrix4fv(matrixUniform, 1, GL_FALSE, &this->projectionMatrix[0][0]);
@@ -167,14 +166,14 @@ Page* SimulatorPage::Run()
 	{
 		this->GetError(__LINE__);
 		glfwPollEvents();
+
+		this->HandleInput(this->window);
+
 		this->RenderOpenGL();
 		this->GetError(__LINE__);
+		
 		glfwSwapBuffers(this->window);
 		this->GetError(__LINE__);
-
-		// If the escape key gets pressed, close the window
-		if (glfwGetKey(this->window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-			glfwSetWindowShouldClose(this->window, true);
 	}
 	return m_nextPage;
 }
@@ -228,6 +227,7 @@ void SimulatorPage::InitGrid()
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2), (void*)0);
 	glEnableVertexAttribArray(0);
 
+	this->colSize = 64;
 }
 
 void SimulatorPage::RenderGrid()
@@ -241,28 +241,51 @@ void SimulatorPage::RenderGrid()
 
 	// Set the line color
 	glUniform4f(colorUniform, this->lineColor.x, this->lineColor.y, this->lineColor.z, 1.0f);
-	//glUniformMatrix4fv(matrixUniform, 1, GL_FALSE, &this->projectionMatrix[0][0]);
 
-	// Bind VAO
-	glBindVertexArray(this->gridRowVAO);
+	// Set the line width to 4
 	glLineWidth(4);
 
-	// Prepare to draw rows
-	int loopAmount = (this->screenHeight / this->colSize);
+	// Draw vertical lines
+	int loopAmount = (this->screenWidth / this->colSize);
 	glUniform1i(colCountUniform, loopAmount);
 
-	// Works
+	glBindVertexArray(this->gridRowVAO);
 	glUniform1i(colOrRowUniform, 1); // Start rendering rows (Vertical lines
-	glDrawArraysInstanced(GL_LINES, 0, GL_UNSIGNED_INT, loopAmount);
+	glDrawArraysInstanced(GL_LINES, 0, GL_UNSIGNED_INT, loopAmount + 2);
 
-	// Not works
-	// Prepare to draw columns
-	glBindVertexArray(this->gridColumnVAO);
-
-	loopAmount = (this->screenWidth/ this->colSize);
+	// Draw horizontal lines
+	loopAmount = (this->screenHeight/ this->colSize);
 	glUniform1i(colCountUniform, loopAmount);
 
-	glUniform1i(colOrRowUniform, 0); // Start rendering rows (Vertical lines)
-	glDrawArraysInstanced(GL_LINES, 0, GL_UNSIGNED_INT, loopAmount);
+	glBindVertexArray(this->gridColumnVAO);
+	glUniform1i(colOrRowUniform, 0); // Start rendering columns (Horizontal lines)
+	glDrawArraysInstanced(GL_LINES, 0, GL_UNSIGNED_INT, loopAmount + 2);
 }
 
+void SimulatorPage::HandleInput(GLFWwindow* a_window)
+{
+	// If the escape key gets pressed, close the window
+	if (glfwGetKey(a_window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
+		glfwSetWindowShouldClose(this->window, true);
+}
+
+void SimulatorPage::MouseHover(GLFWwindow *a_window, double a_posX, double a_posY)
+{
+	// Calculate in which cell the mouse pointer is located
+	int m_cellX = ((a_posX) / this->colSize);
+	int m_cellY = ((a_posY) / this->colSize);
+
+	// Update the current hovered grid cols
+	if (this->curColHoveredX != m_cellX)
+		this->curColHoveredX = m_cellX;
+
+	if (this->curColHoveredY!= m_cellY)
+		this->curColHoveredY = m_cellY;
+
+	std::cout << "cellX: " << m_cellX << "cellY: " << m_cellY << std::endl;
+}
+
+void SimulatorPage::MouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods)
+{
+
+}

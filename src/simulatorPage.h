@@ -31,7 +31,9 @@ private:
 	// Grid
 	Shader gridShader;
 	glm::vec3 lineColor = glm::vec3(1.5f, 1.5f, 1.5f);
-	int colSize;
+	int colSize = 32;
+	int curColHoveredX = 0;
+	int curColHoveredY = 0;
 	
 	GLuint gridRowVAO;
 	GLuint gridRowVBO;
@@ -50,10 +52,16 @@ private:
 	void UpdateSimulation();
 	void DisposeOpenGL();
 	void DisposeImGui();
+	
+	// Input
+	void HandleInput(GLFWwindow* a_window);
+	void MouseHover(GLFWwindow* a_window, double a_posX, double a_posY);
+	void MouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods);
 
 	// Grid
 	void InitGrid();
 	void RenderGrid();
+
 };
 
 #endif
