@@ -1,5 +1,5 @@
 #include <iostream>
-#include <mutex>
+#include <atomic>
 #include <glad/glad.h>
 
 #ifndef __CELL__
@@ -20,8 +20,8 @@ public:
 	GLint64 y;
 	CellState state;
 	CellState decayState;
-	unsigned char neighorCount;
-
+	unsigned char neighborCount;
+	std::atomic<unsigned char> atomic_neighborCount;
 public:
 	void InitRender(long a_cellX, long a_cellY);
 	void Render();
@@ -36,7 +36,8 @@ public:
 		this->state = Background;
 		this->x = 0;
 		this->y = 0;
-		this->neighorCount = 0;
+		this->atomic_neighborCount.store(0);
+		this->neighborCount = 0;
 	}
 };
 

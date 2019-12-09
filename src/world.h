@@ -30,8 +30,11 @@ private:
 	void LoadFile();
 	void EmptyWorld();
 	void IncrementNeighbors(int x, int y);
+	void IncrementNeighborsOld(int x, int y);
+	void ProcessPart(int start, int end);
 public:
 	void UpdateSimulation();
+	void UpdateSimulationSerial();
 	void Save(std::string a_worldName);
 	void Open(std::string a_filePath);
 	void SaveAsTemplate(std::string a_worldName);

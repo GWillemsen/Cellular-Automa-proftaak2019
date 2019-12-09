@@ -1,6 +1,7 @@
 #include <iostream>
 #include <chrono>
 #include <thread>
+#include <time.h>
 
 #include "world.h"
 #include "cell.h"
@@ -110,32 +111,86 @@ Cell* m_cells[] = {
 };
 
 void printCells();
+void addGenerator(int x, int y);
+void cleanUp();
 
 void main()
 {
-	for (Cell* m_cell : m_cells)
+	/*for (Cell* m_cell : m_cells)
 	{
 		world.cells.insert(make_pair(make_pair(m_cell->x, m_cell->y), m_cell));
-	}
-	printCells();
-	cout << endl << endl << endl;
+	}*/
+	int xWidth = 5;
+	int yHeight = 11;
+	int xCount = 1000;
+	int yCount = 1000;
+	int generatorCount = 0;
+	cout << "Generating world" << endl;
 
+	for (int x = 0; x < xCount; x += xWidth)
+	{
+		for (int y = 0; y < yCount; y += yHeight)
+		{
+			generatorCount++;
+			addGenerator(x, y);
+		}
+	}
+	cout << "Generated " << generatorCount << " generators" << endl;
+
+	//printCells();
+	cout << endl << endl << endl;
+	int cycleCount = 15 * 1;
+	clock_t start_time = clock();
+	for (int i = 0; i < cycleCount; i++)
+	{
+		world.UpdateSimulation();
+		if (i % 10 == 0)
+			cout << "At: " << i << endl;
+	}
+	clock_t end = clock();
+	double ms = (end - start_time) / (CLOCKS_PER_SEC / 1000);
+	cout << "It took: " << ms << " ms with atomic. Thus " << ms / cycleCount << " per cycle" << endl;
+
+	start_time = clock();
+	for (int i = 0; i < cycleCount; i++)
+	{
+		world.UpdateSimulationSerial();
+		if (i % 10 == 0)
+			cout << "At: " << i << endl;
+	}
+	end = clock();
+	ms = (end - start_time) / (CLOCKS_PER_SEC / 1000);
+	cout << "It took: " << ms << " ms without atomic. Thus " << ms / cycleCount << " per cycle" << endl;
+	/*
 	while (true)
 	{
 		world.UpdateSimulation();
 		printCells();
 		cout << endl << endl << endl;
 		std::this_thread::sleep_for(500ms);
-	}
+	}*/
+	cleanUp();
 	cin.get();
+}
+
+void cleanUp()
+{
+	for (auto m_pair : world.cells)
+	{
+		delete m_pair.second;
+	}
+	for (auto m_cell : m_cells)
+	{
+		delete m_cell;
+	}
 }
 
 void printCells()
 {
-	char m_stat[10][20];
-	for (int x = 0; x < 10; x++)
+	char m_stat[25][25];
+	for (int x = 0; x < 25; x++)
 	{
-		for (int y = 0; y < 20; y++)
+		for (int y = 0; y < 25; y++)
 		{
 			m_stat[x][y] = ' ';
 		}
@@ -161,9 +216,9 @@ void printCells()
 		m_stat[m_cl.second->x][m_cl.second->y] = m_type;
 	}
 	std::string data = "";
-	for (int m_x = 0; m_x < 9; m_x++)
+	for (int m_x = 0; m_x < 25; m_x++)
 	{
-		for (int m_y = 0; m_y < 20; m_y++)
+		for (int m_y = 0; m_y < 25; m_y++)
 		{
 			data += m_stat[m_x][m_y];
 			data.append("  ");
@@ -171,4 +226,44 @@ void printCells()
 		data.append("\r\n");
 	}
 	cout << data;
+}
+
+void addGenerator(int x, int y)
+{
+	world.cells.insert(make_pair(make_pair(x + 0, y + 0), new Cell(x + 0, y + 0, Background)));		
+//	world.cells.insert(make_pair(make_pair(x + 0, y + 1), new Cell(x + 0, y + 1, Head)));
+	world.cells.insert(make_pair(make_pair(x + 0, y + 1), new Cell(x + 0, y + 1, Conductor)));
+	//world.cells.insert(make_pair(make_pair(x + 0, y + 2), new Cell(x + 0, y + 2, Tail)));
+	world.cells.insert(make_pair(make_pair(x + 0, y + 2), new Cell(x + 0, y + 2, Conductor)));
+	world.cells.insert(make_pair(make_pair(x + 0, y + 3), new Cell(x + 0, y + 3, Conductor)));
+	world.cells.insert(make_pair(make_pair(x + 0, y + 4), new Cell(x + 0, y + 4, Conductor)));
+	world.cells.insert(make_pair(make_pair(x + 0, y + 5), new Cell(x + 0, y + 5, Conductor)));
+	world.cells.insert(make_pair(make_pair(x + 0, y + 6), new Cell(x + 0, y + 6, Conductor)));
+	world.cells.insert(make_pair(make_pair(x + 0, y + 7), new Cell(x + 0, y + 7, Conductor)));
+	world.cells.insert(make_pair(make_pair(x + 0, y + 8), new Cell(x + 0, y + 8, Conductor)));
+	world.cells.insert(make_pair(make_pair(x + 0, y + 9), new Cell(x + 0, y + 9, Background)));
+
+	world.cells.insert(make_pair(make_pair(x + 1, y + 0), new Cell(x + 1, y + 0, Conductor)));
+	world.cells.insert(make_pair(make_pair(x + 1, y + 1), new Cell(x + 1, y + 1, Background)));
+	world.cells.insert(make_pair(make_pair(x + 1, y + 2), new Cell(x + 1, y + 2, Background)));
+	world.cells.insert(make_pair(make_pair(x + 1, y + 3), new Cell(x + 1, y + 3, Background)));
+	world.cells.insert(make_pair(make_pair(x + 1, y + 4), new Cell(x + 1, y + 4, Background)));
+	world.cells.insert(make_pair(make_pair(x + 1, y + 5), new Cell(x + 1, y + 5, Background)));
+	world.cells.insert(make_pair(make_pair(x + 1, y + 6), new Cell(x + 1, y + 6, Background)));
+	world.cells.insert(make_pair(make_pair(x + 1, y + 7), new Cell(x + 1, y + 7, Background)));
+	world.cells.insert(make_pair(make_pair(x + 1, y + 8), new Cell(x + 1, y + 8, Background)));
+	world.cells.insert(make_pair(make_pair(x + 1, y + 9), new Cell(x + 1, y + 9, Conductor)));
+
+	world.cells.insert(make_pair(make_pair(x + 2, y + 0), new Cell(x + 2, y + 0, Background)));
+	world.cells.insert(make_pair(make_pair(x + 2, y + 1), new Cell(x + 2, y + 1, Conductor)));
+	world.cells.insert(make_pair(make_pair(x + 2, y + 2), new Cell(x + 2, y + 2, Conductor)));
+	world.cells.insert(make_pair(make_pair(x + 2, y + 3), new Cell(x + 2, y + 3, Conductor)));
+	world.cells.insert(make_pair(make_pair(x + 2, y + 4), new Cell(x + 2, y + 4, Conductor)));
+	//world.cells.insert(make_pair(make_pair(x + 2, y + 5), new Cell(x + 2, y + 5, Tail)));
+	world.cells.insert(make_pair(make_pair(x + 2, y + 5), new Cell(x + 2, y + 5, Conductor)));
+	//world.cells.insert(make_pair(make_pair(x + 2, y + 6), new Cell(x + 2, y + 6, Head)));
+	world.cells.insert(make_pair(make_pair(x + 2, y + 6), new Cell(x + 2, y + 6, Conductor)));
+	world.cells.insert(make_pair(make_pair(x + 2, y + 7), new Cell(x + 2, y + 7, Conductor)));
+	world.cells.insert(make_pair(make_pair(x + 2, y + 8), new Cell(x + 2, y + 8, Conductor)));
+	world.cells.insert(make_pair(make_pair(x + 2, y + 9), new Cell(x + 2, y + 9, Background)));
 }
