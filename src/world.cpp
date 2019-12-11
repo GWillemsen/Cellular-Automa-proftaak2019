@@ -283,7 +283,7 @@ void World::IncrementNeighbors(int a_x, int a_y)
 			{
 				next = make_pair(a_x + x_offset, a_y + y_offset);
 				auto m_found = this->cells.find(next);
-				if (m_found != m_end && this->cells[next]->state == Conductor)
+				if (m_found != m_end && m_found->second->state == Conductor)
 				{
 					m_found->second->atomic_neighborCount.fetch_add(1);
 				}
