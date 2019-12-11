@@ -32,10 +32,14 @@ private:
 	Shader gridLineShader;
 	Shader gridCellShader;
 	glm::vec3 lineColor = glm::vec3(1.5f, 1.5f, 1.5f);
+
 	int cellSizeDivisor = 32;
 	int curColHoveredX = 0;
 	int curColHoveredY = 0;
 	
+	int cellScrollOffsetX = 0;
+	int cellScrollOffsetY = 0;
+
 	GLuint gridRowVAO;
 	GLuint gridRowVBO;
 	GLuint gridColumnVAO;

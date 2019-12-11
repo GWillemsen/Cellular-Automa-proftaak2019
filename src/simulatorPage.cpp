@@ -84,10 +84,13 @@ void SimulatorPage::InitOpenGL()
 	glEnableVertexAttribArray(0);
 
 	// Fill the cell locations
-	debugCellLocations.push_back(std::make_pair(0, 0));
 	debugCellLocations.push_back(std::make_pair(1, 1));
 	debugCellLocations.push_back(std::make_pair(2, 2));
 	debugCellLocations.push_back(std::make_pair(3, 3));
+	// Out of bounds
+	debugCellLocations.push_back(std::make_pair(40, 4));
+	debugCellLocations.push_back(std::make_pair(41, 5));
+	debugCellLocations.push_back(std::make_pair(42, 6));
 
 	this->cellSizeDivisor = 48;
 
@@ -251,6 +254,8 @@ void SimulatorPage::HandleInput(GLFWwindow* a_window)
 	// If the escape key gets pressed, close the window
 	if (glfwGetKey(a_window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(this->window, true);
+
+	//std::cout << "sx: " << this->cellScrollOffsetX << " sy: " << this->cellScrollOffsetY << std::endl;
 }
 
 void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_posY)
@@ -271,6 +276,19 @@ void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_pos
 
 void SimulatorPage::MouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods)
 {
+	// Left mouse click
+	if (a_button == 0 && a_action == 1)
+	{
+		this->cellScrollOffsetX -= 1;
+	}
+	// Right mouse click
+	else if (a_button == 1 && a_action == 1)
+	{
+		this->cellScrollOffsetX += 1;
+	}
+
+	std::cout << this->cellScrollOffsetX << std::endl;
+
 	//std::cout << "Button: " << a_button << "Action: " << a_action << "Mods: " << a_mods << std::endl;
 }
 
@@ -304,34 +322,50 @@ void SimulatorPage::RenderCells()
 	// Loop through the vector pairs
 	for (m_iteratorPointer = debugCellLocations.begin(); m_iteratorPointer < debugCellLocations.end(); m_iteratorPointer++)
 	{
-		Cell m_cell = Cell();
+		int m_viewportWidthMax = (int)(this->screenWidth / this->cellSizeDivisor) + this->cellScrollOffsetX;
+		int m_viewportHeightMax = (int)(this->screenHeight/ this->cellSizeDivisor) + this->cellScrollOffsetY;
 
-		m_cell.x = m_iteratorPointer->first;
-		m_cell.y = m_iteratorPointer->second;
-		m_cell.cellState = CellState::Conductor;
+		//std::cout << m_viewportWidthMax << std::endl;
 
-		int cellOffsetVerticalUniform = this->gridCellShader.getUniformLocation("u_VerticalOffset");
-		int cellOffsetHorizontalUniform = this->gridCellShader.getUniformLocation("u_HorizontalOffset");
+		/*std::cout << "x" << m_iteratorPointer->first << "y" << m_iteratorPointer->second
+			<< " minX: " << this->cellScrollOffsetX << "maxX: " << m_viewportWidthMax
+			<< " minY: " << this->cellScrollOffsetY << " maxY: " << m_viewportHeightMax << std::endl;*/
 
-		glUniform1i(cellOffsetVerticalUniform, m_cell.y);
-		glUniform1i(cellOffsetHorizontalUniform, m_cell.x);
-
-		// Set the color of the cell
-		if (m_cell.cellState == CellState::Conductor)
+		if (m_iteratorPointer->first >= this->cellScrollOffsetX && m_iteratorPointer->first < m_viewportWidthMax &&
+			m_iteratorPointer->second >= this->cellScrollOffsetY && m_iteratorPointer->second < m_viewportHeightMax
+			)
 		{
-			glUniform4f(this->colorUniform, 1.0f, 1.0f, 0.0f, 1.0f);
-		}
-		else if (m_cell.cellState == CellState::Head)
-		{
-			glUniform4f(this->colorUniform, 1.0f, 0.0f, 0.0f, 1.0f);
-		}
-		else if (m_cell.cellState == CellState::Tail)
-		{
-			glUniform4f(this->colorUniform, 0.0f, 0.0f, 1.0f, 1.0f);
-		}
+			Cell m_cell = Cell();
 
-		m_cell.InitRender(m_cell.x, m_cell.y);
-		m_cell.Render(this->colorUniform, this->cellVaoBuffer);
+			m_cell.x = m_iteratorPointer->first;
+			m_cell.y = m_iteratorPointer->second;
+			m_cell.cellState = CellState::Conductor;
+
+			int cellOffsetVerticalUniform = this->gridCellShader.getUniformLocation("u_VerticalOffset");
+			int cellOffsetHorizontalUniform = this->gridCellShader.getUniformLocation("u_HorizontalOffset");
+
+			glUniform1i(cellOffsetVerticalUniform, m_cell.y - this->cellScrollOffsetY);
+			glUniform1i(cellOffsetHorizontalUniform, m_cell.x - this->cellScrollOffsetX);
+
+			// Set the color of the cell
+			if (m_cell.cellState == CellState::Conductor)
+			{
+				glUniform4f(this->colorUniform, 1.0f, 1.0f, 0.0f, 1.0f);
+			}
+			else if (m_cell.cellState == CellState::Head)
+			{
+				glUniform4f(this->colorUniform, 1.0f, 0.0f, 0.0f, 1.0f);
+			}
+			else if (m_cell.cellState == CellState::Tail)
+			{
+				glUniform4f(this->colorUniform, 0.0f, 0.0f, 1.0f, 1.0f);
+			}
+
+			m_cell.InitRender(m_cell.x, m_cell.y);
+			m_cell.Render(this->colorUniform, this->cellVaoBuffer);
+		}
+		else
+			continue;
 	}
 }
 
