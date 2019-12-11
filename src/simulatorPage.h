@@ -23,15 +23,16 @@ private:
 	GLuint colorUniform;
 	glm::mat4 projectionMatrix = glm::ortho(0.0f, 1.0f, 0.0f, 1.0f);
 
-	GLuint vaoBuffer;
-	GLuint vboBuffer;
+	GLuint cellVaoBuffer;
+	GLuint cellVboBuffer;
 
 	Shader shaders;
 
 	// Grid
-	Shader gridShader;
+	Shader gridLineShader;
+	Shader gridCellShader;
 	glm::vec3 lineColor = glm::vec3(1.5f, 1.5f, 1.5f);
-	int colSize = 32;
+	int cellSizeDivisor = 32;
 	int curColHoveredX = 0;
 	int curColHoveredY = 0;
 	
@@ -61,6 +62,8 @@ private:
 	// Grid
 	void InitGrid();
 	void RenderGrid();
+	void RenderCells();
+	void UpdateCellSize();
 
 };
 

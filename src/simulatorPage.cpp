@@ -1,5 +1,6 @@
 #include <thread>
 #include <iostream>
+#include <vector>
 #include <glad\glad.h>
 #include <glm\glm.hpp>
 #include <GLFW\glfw3.h>
@@ -8,28 +9,44 @@
 #include "config.h"
 #include <glm\gtx\transform.hpp>
 
-// Grid variables
-int gridWidth = 800;
-int gridHeight = 600;
+// Cell variables
+float cellHeight = 0.1f;
+float cellWidth = 0.1f;
+
+glm::vec3 cellVertices[] = {
+	// Triangle 1
+	glm::vec3(0.0f, 0.0f, 0.0f), // Index 0, Top left
+	glm::vec3(0.0f, cellHeight, 0.0f), // Index 1, Bottom left
+	glm::vec3(cellWidth, cellHeight, 0.0f), // Index 2, Bottom right
+
+	// Triangle 2
+	glm::vec3(cellWidth, 0.0f, 0.0f)  // Index 3, Top right
+};
+
+unsigned int cellIndices[] = {
+	// Triangle 1
+	0, 1, 2,
+
+	// Triangle 2
+	0, 3, 2
+};
+
+// Cell debug variables
+std::vector<std::pair<int, int>> debugCellLocations;
 
 SimulatorPage::SimulatorPage(GLFWwindow* a_window) : Page(a_window, "SimulatorPage")
 {
 	this->shaders = Shader();
 
 	this->shaders.setVertexShader("shaders/basicVertexShader.glsl");
-	this->GetError(__LINE__);
 	this->shaders.setFragmentShader("shaders/basicFragmentShader.glsl");
-	this->GetError(__LINE__);
 	this->shaders.compile();
-	this->GetError(__LINE__);
 
-	this->colSize = 32;
 	this->lineColor = glm::vec3(0.4f, 0.4f, 0.4f);
-	this->colorUniform = 0; // glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
-	this->projectionMatrix = glm::mat4(1.0f);
+	this->colorUniform = 0;
 
-	this->vaoBuffer = 0;
-	this->vboBuffer = 0;
+	this->cellVaoBuffer = 0;
+	this->cellVboBuffer = 0;
 }
 
 SimulatorPage::SimulatorPage(GLFWwindow* a_window, Shader a_shader) : SimulatorPage(a_window)
@@ -39,60 +56,42 @@ SimulatorPage::SimulatorPage(GLFWwindow* a_window, Shader a_shader) : SimulatorP
 
 void SimulatorPage::InitOpenGL()
 {
-	// Initializes OpenGL
-	glm::vec3 m_vertices[] = {
-		// Triangle 1
-		glm::vec3(0.0f, 0.0f, 0.0f), // Index 0, Top left
-		glm::vec3(0.0f, 0.15f, 0.0f), // Index 1, Bottom left
-		glm::vec3(0.10f, 0.15f, 0.0f), // Index 2, Bottom right
-
-		// Triangle 2
-		glm::vec3(0.10f, 0.0f, 0.0f)  // Index 3, Top right
-	};
-
-	unsigned int m_indices[] = {
-		// Triangle 1
-		0, 1, 2,
-
-		// Triangle 2
-		0, 3, 2
-	};
+	// Set some uniform variable in the default shader
 	this->shaders.use();
-	this->GetError(__LINE__);
 	this->colorUniform = this->shaders.getUniformLocation("u_Color");
-	this->GetError(__LINE__);
-	//glUniform4f(this->colorUniform, (float)this->lineColor.x, this->lineColor.y, this->lineColor.z, 1.0f);
-	glUniform4f(this->colorUniform, 0.0f, 1.0f, 0.0f, 1.0f); // this->lineColor.x, this->lineColor.y, this->lineColor.z, 1.0f);
-	this->GetError(__LINE__);
-	
+	this->projectionMatrix = glm::ortho(0.0f, 1.0f, 1.0f, 0.0f);
+
+	glUniform4f(this->colorUniform, this->lineColor.x, this->lineColor.y, this->lineColor.z, 1.0f);
+
 	// Create a VAO and a VBO
-	glGenVertexArrays(1, &this->vaoBuffer);
-	this->GetError(__LINE__);
-	glBindVertexArray(this->vaoBuffer);
-	this->GetError(__LINE__);
+	glGenVertexArrays(1, &this->cellVaoBuffer);
+	glBindVertexArray(this->cellVaoBuffer);
 
-	glGenBuffers(1, &this->vboBuffer);
-	this->GetError(__LINE__);
-	glBindBuffer(GL_ARRAY_BUFFER, this->vboBuffer);
-	this->GetError(__LINE__);
-	glBufferData(GL_ARRAY_BUFFER, 4 * sizeof(glm::vec3), m_vertices, GL_STATIC_DRAW);
-	this->GetError(__LINE__);
+	// Fill the VBO with data
+	glGenBuffers(1, &this->cellVboBuffer);
+	glBindBuffer(GL_ARRAY_BUFFER, this->cellVboBuffer);
+	glBufferData(GL_ARRAY_BUFFER, 4 * sizeof(glm::vec3), cellVertices, GL_DYNAMIC_DRAW);
 
-
+	// Create an EBO and fill it with data
 	unsigned int eboBuffer;
 	glGenBuffers(1, &eboBuffer);
-	this->GetError(__LINE__);
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, eboBuffer);
-	this->GetError(__LINE__);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(unsigned int), m_indices, GL_STATIC_DRAW);
-	this->GetError(__LINE__);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(unsigned int), cellIndices, GL_DYNAMIC_DRAW);
 
-
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_TRUE, sizeof(glm::vec3), (void*)0);
-	this->GetError(__LINE__);
+	// Define the data layout
+	// CHANGE TO GL_TRUE WHEN BRICKED and tell Guylian that this was a mistake!
+	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
 	glEnableVertexAttribArray(0);
-	this->GetError(__LINE__);
 
+	// Fill the cell locations
+	debugCellLocations.push_back(std::make_pair(0, 0));
+	debugCellLocations.push_back(std::make_pair(1, 1));
+	debugCellLocations.push_back(std::make_pair(2, 2));
+	debugCellLocations.push_back(std::make_pair(3, 3));
+
+	this->cellSizeDivisor = 48;
+
+	this->UpdateCellSize();
 	this->InitGrid();
 }
 
@@ -110,29 +109,15 @@ void SimulatorPage::RenderOpenGL()
 {
 	// Renders graphics through OpenGL
 
-	this->GetError(__LINE__);
+	// Clear the screen
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT);
-	this->GetError(__LINE__);
 
-	//glBindBuffer(GL_ARRAY_BUFFER, this->vboBuffer);
+	// Render all of the cells
+	this->RenderCells();
+
+	// Render the grid as the last item, this way the grid becomes an overlay
 	this->RenderGrid();
-
-	this->shaders.use();
-	this->GetError(__LINE__);
-
-	glUniform4f(this->colorUniform, 0.0f, 1.0f, 0.0f, 1.0f); // this->lineColor.x, this->lineColor.y, this->lineColor.z, 1.0f);
-	glBindVertexArray(this->vaoBuffer);
-	this->GetError(__LINE__);
-
-	// Update the projection matrix with the scales
-	this->projectionMatrix = glm::ortho(0.0f, 1.0f, 1.0f, 0.0f);
-	int matrixUniform = this->shaders.getUniformLocation("u_Projection");
-	this->GetError(__LINE__);
-	glUniformMatrix4fv(matrixUniform, 1, GL_FALSE, &this->projectionMatrix[0][0]);
-
-	//glDrawArraysInstanced(GL_LINES, 0, this->lineAmount, this->lineAmount);
-	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
 }
 
 void SimulatorPage::RenderImGui()
@@ -157,23 +142,19 @@ void SimulatorPage::DisposeImGui()
 
 Page* SimulatorPage::Run()
 {
-	this->GetError(__LINE__);
 	this->InitOpenGL();
-	this->GetError(__LINE__);
+
 	bool m_exit = false;
 	Page* m_nextPage = nullptr;
+	
 	while (!m_exit && !glfwWindowShouldClose(this->window))
 	{
-		this->GetError(__LINE__);
 		glfwPollEvents();
 
 		this->HandleInput(this->window);
-
 		this->RenderOpenGL();
-		this->GetError(__LINE__);
-		
+
 		glfwSwapBuffers(this->window);
-		this->GetError(__LINE__);
 	}
 	return m_nextPage;
 }
@@ -191,20 +172,22 @@ void SimulatorPage::InitGrid()
 		glm::vec2(0.0f, 1.0f)
 	};
 
-	// Create and compile a new shader
-	this->gridShader.setVertexShader("shaders/gridVertexShader.glsl");
-	this->gridShader.setFragmentShader("shaders/basicFragmentShader.glsl");
-	this->gridShader.compile();
+	// Create and compile shaders
+	this->gridCellShader.setVertexShader("shaders/gridCellVertexShader.glsl");
+	this->gridCellShader.setFragmentShader("shaders/basicFragmentShader.glsl");
+	this->gridCellShader.compile();
 
-	this->gridShader.use();
+	this->gridLineShader.setVertexShader("shaders/gridLineVertexShader.glsl");
+	this->gridLineShader.setFragmentShader("shaders/basicFragmentShader.glsl");
+	this->gridLineShader.compile();
+	this->gridLineShader.use();
 
-	this->projectionMatrix = glm::ortho(0.0f, 1.0f, 0.0f, 1.0f);
-	glUniformMatrix4fv(gridShader.getUniformLocation("u_Projection"), 1, GL_FALSE, &this->projectionMatrix[0][0]);
+	glUniformMatrix4fv(gridLineShader.getUniformLocation("u_Projection"), 1, GL_FALSE, &this->projectionMatrix[0][0]);
 
 	// Create and bind a new VAO
 	glGenVertexArrays(1, &this->gridColumnVAO);
 	glBindVertexArray(this->gridColumnVAO);
-	
+
 	// Bind grid columns
 	glGenBuffers(1, &this->gridColumnVBO);
 	glBindBuffer(GL_ARRAY_BUFFER, this->gridColumnVBO);
@@ -226,27 +209,28 @@ void SimulatorPage::InitGrid()
 	// Define data layout
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2), (void*)0);
 	glEnableVertexAttribArray(0);
-
-	this->colSize = 64;
 }
 
 void SimulatorPage::RenderGrid()
 {
-	this->gridShader.use();
+	this->gridLineShader.use();
 
-	int colorUniform = gridShader.getUniformLocation("u_Color");
-	int matrixUniform = gridShader.getUniformLocation("u_Projection");
-	int colCountUniform = gridShader.getUniformLocation("u_ColCount");
-	int colOrRowUniform = gridShader.getUniformLocation("u_ColOrRow");
+	int colorUniform = gridLineShader.getUniformLocation("u_Color");
+	int matrixUniform = gridLineShader.getUniformLocation("u_Projection");
+	int colCountUniform = gridLineShader.getUniformLocation("u_ColCount");
+	int colOrRowUniform = gridLineShader.getUniformLocation("u_ColOrRow");
 
 	// Set the line color
 	glUniform4f(colorUniform, this->lineColor.x, this->lineColor.y, this->lineColor.z, 1.0f);
+
+	// Set the projection matrix
+	glUniformMatrix4fv(matrixUniform, 1, GL_FALSE, &this->projectionMatrix[0][0]);
 
 	// Set the line width to 4
 	glLineWidth(4);
 
 	// Draw vertical lines
-	int loopAmount = (this->screenWidth / this->colSize);
+	int loopAmount = (this->screenWidth / this->cellSizeDivisor);
 	glUniform1i(colCountUniform, loopAmount);
 
 	glBindVertexArray(this->gridRowVAO);
@@ -254,7 +238,7 @@ void SimulatorPage::RenderGrid()
 	glDrawArraysInstanced(GL_LINES, 0, GL_UNSIGNED_INT, loopAmount + 2);
 
 	// Draw horizontal lines
-	loopAmount = (this->screenHeight/ this->colSize);
+	loopAmount = (this->screenHeight / this->cellSizeDivisor);
 	glUniform1i(colCountUniform, loopAmount);
 
 	glBindVertexArray(this->gridColumnVAO);
@@ -269,23 +253,108 @@ void SimulatorPage::HandleInput(GLFWwindow* a_window)
 		glfwSetWindowShouldClose(this->window, true);
 }
 
-void SimulatorPage::MouseHover(GLFWwindow *a_window, double a_posX, double a_posY)
+void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_posY)
 {
 	// Calculate in which cell the mouse pointer is located
-	int m_cellX = ((a_posX) / this->colSize);
-	int m_cellY = ((a_posY) / this->colSize);
+	int m_cellX = ((a_posX) / this->cellSizeDivisor);
+	int m_cellY = ((a_posY) / this->cellSizeDivisor);
 
 	// Update the current hovered grid cols
 	if (this->curColHoveredX != m_cellX)
 		this->curColHoveredX = m_cellX;
 
-	if (this->curColHoveredY!= m_cellY)
+	if (this->curColHoveredY != m_cellY)
 		this->curColHoveredY = m_cellY;
 
-	std::cout << "cellX: " << m_cellX << "cellY: " << m_cellY << std::endl;
+	//std::cout << "cellX: " << m_cellX << "cellY: " << m_cellY << std::endl;
 }
 
 void SimulatorPage::MouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods)
 {
+	//std::cout << "Button: " << a_button << "Action: " << a_action << "Mods: " << a_mods << std::endl;
+}
 
+// Cell rendering
+void SimulatorPage::RenderCells()
+{
+	this->gridCellShader.use();
+
+	// Bind the grid shader
+	this->gridCellShader.use();
+	this->colorUniform = gridCellShader.getUniformLocation("u_Color");
+
+	// Sets the cell colors
+	glUniform4f(this->colorUniform, 1.0f, 1.0f, 1.0f, 1.0f);
+	glBindVertexArray(this->cellVaoBuffer);
+
+	// Update the projection matrix with the scales
+	int matrixUniform = this->gridCellShader.getUniformLocation("u_Projection");
+	glUniformMatrix4fv(matrixUniform, 1, GL_FALSE, &this->projectionMatrix[0][0]);
+
+	// Get the grid cell size uniforms and update them
+	int cellWidthUniform = this->gridCellShader.getUniformLocation("u_CellWidth");
+	int cellHeightUniform = this->gridCellShader.getUniformLocation("u_CellHeight");
+
+	glUniform1f(cellWidthUniform, 1.0f / (this->screenWidth / this->cellSizeDivisor));
+	glUniform1f(cellHeightUniform, 1.0f / (this->screenHeight / this->cellSizeDivisor));
+
+	// Create a new iterator pointer, this is needed to loop through the vector pairs
+	std::vector<std::pair<int, int>>::iterator m_iteratorPointer;
+
+	// Loop through the vector pairs
+	for (m_iteratorPointer = debugCellLocations.begin(); m_iteratorPointer < debugCellLocations.end(); m_iteratorPointer++)
+	{
+		Cell m_cell = Cell();
+
+		m_cell.x = m_iteratorPointer->first;
+		m_cell.y = m_iteratorPointer->second;
+		m_cell.cellState = CellState::Conductor;
+
+		int cellOffsetVerticalUniform = this->gridCellShader.getUniformLocation("u_VerticalOffset");
+		int cellOffsetHorizontalUniform = this->gridCellShader.getUniformLocation("u_HorizontalOffset");
+
+		glUniform1i(cellOffsetVerticalUniform, m_cell.y);
+		glUniform1i(cellOffsetHorizontalUniform, m_cell.x);
+
+		// Set the color of the cell
+		if (m_cell.cellState == CellState::Conductor)
+		{
+			glUniform4f(this->colorUniform, 1.0f, 1.0f, 0.0f, 1.0f);
+		}
+		else if (m_cell.cellState == CellState::Head)
+		{
+			glUniform4f(this->colorUniform, 1.0f, 0.0f, 0.0f, 1.0f);
+		}
+		else if (m_cell.cellState == CellState::Tail)
+		{
+			glUniform4f(this->colorUniform, 0.0f, 0.0f, 1.0f, 1.0f);
+		}
+
+		m_cell.InitRender(m_cell.x, m_cell.y);
+		m_cell.Render(this->colorUniform, this->cellVaoBuffer);
+	}
+}
+
+void SimulatorPage::UpdateCellSize()
+{
+	cellHeight = (1.0f / (this->screenHeight / this->cellSizeDivisor));
+	cellWidth = (1.0f / (this->screenWidth / this->cellSizeDivisor));
+
+	glm::vec3 m_newCellVertices[] = {
+		// Triangle 1
+		glm::vec3(0.0f, 0.0f, 0.0f), // Index 0, Top left
+		glm::vec3(0.0f, cellHeight, 0.0f), // Index 1, Bottom left
+		glm::vec3(cellWidth, cellHeight, 0.0f), // Index 2, Bottom right
+
+		// Triangle 2
+		glm::vec3(cellWidth, 0.0f, 0.0f)  // Index 3, Top right
+	};
+
+	glBindVertexArray(this->cellVaoBuffer);
+	glBindBuffer(GL_ARRAY_BUFFER, this->cellVboBuffer);
+
+	// Update the VBO data
+	glm::vec3* m_bufferDataPtr = (glm::vec3*)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
+	memcpy(m_bufferDataPtr, &m_newCellVertices, sizeof(m_newCellVertices));
+	glUnmapBuffer(GL_ARRAY_BUFFER);
 }

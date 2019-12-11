@@ -20,7 +20,7 @@ public:
 
 public:
 	void InitRender(long a_cellX, long a_cellY);
-	void Render();
+	void Render(int a_colorUniform, int a_vaoBuffer);
 };
 
 #endif // __CELL__

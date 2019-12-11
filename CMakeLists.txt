@@ -44,7 +44,8 @@ set (CPPFILES
 
 configure_file(src/shaders/basicVertexShader.glsl shaders/basicVertexShader.glsl)
 configure_file(src/shaders/basicFragmentShader.glsl shaders/basicFragmentShader.glsl)
-configure_file(src/shaders/gridVertexShader.glsl shaders/gridVertexShader.glsl)
+configure_file(src/shaders/gridLineVertexShader.glsl shaders/gridLineVertexShader.glsl)
+configure_file(src/shaders/gridCellVertexShader.glsl shaders/gridCellVertexShader.glsl)
 
 add_executable(App ${CPPFILES} dependencies/GLAD/src/glad.c)
 

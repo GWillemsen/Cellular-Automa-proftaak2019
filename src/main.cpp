@@ -111,9 +111,10 @@ GLFWwindow* CreateWindow()
 	const GLFWvidmode* mode = glfwGetVideoMode(monitor);
 
 	glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
-	glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
+	//glfwWindowHint(GLFW_MAXIMIZED, GLFW_FALSE);
 	glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
 
+	//GLFWwindow* window = glfwCreateWindow(mode->width, mode->height, "LearnOpenGL", monitor, NULL);
 	GLFWwindow* window = glfwCreateWindow(mode->width, mode->height, "LearnOpenGL", monitor, NULL);
 	// Make sure that the window is created.
 	if (window == NULL)
