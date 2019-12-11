@@ -2,6 +2,7 @@
 #include <mutex>
 #include <iterator>
 #include <future>
+#include <chrono>
 
 #include "world.h"
 #include "cell.h"
@@ -18,6 +19,43 @@ void World::EmptyWorld()
 }
 
 // Public methods
+
+World::World(bool a_multithreaded)
+{
+	using std::pair;
+	using std::make_pair;
+	if (!a_multithreaded)
+		return;
+	// returns 0 when not able to detect, otherwise, the number of (logical) processors
+	unsigned int maxThreads = std::thread::hardware_concurrency();
+	if (maxThreads == 0)
+		maxThreads = 1;
+	maxThreads--;
+	for (unsigned int m_threadId = 0; m_threadId < maxThreads; m_threadId++)
+	{
+		this->vec_simUpdaters.emplace_back(std::thread(&World::ProcessPartContinuesly, this, m_threadId, maxThreads));
+		this->threadComboData.emplace(make_pair(m_threadId, new ThreadCombo()));
+		//std::map<int, std::pair<std::mutex, std::pair<unsigned long, std::condition_variable>>>
+		//const int val = 0;
+		//this->threadAndCurrentGenSignaling2.insert(std::make_pair(m_mute, std::make_pair(10, 1)));
+		//this->threadMutexes.insert(make_pair(0, std::make_pair(std::make_unique<std::mutex>(), std::make_pair((unsigned long)0, std::make_unique<std::condition_variable>()))));
+		/*this->threadAndCurrentGenSignaling.insert(
+			std::make_pair(
+				m_threadId, 
+				std::make_pair(
+					m_mutex,
+					std::make_pair(
+						(unsigned long)0,
+						m_cv
+					)
+				)
+			)
+		);*/
+	}
+	this->totalThreads = maxThreads;
+	this->lastPartProcessor = std::thread(&World::ProcessLastPart, this);
+}
+
 void World::Save(std::string a_worldName)
 {
 	// Saves the world to a file
@@ -48,12 +86,205 @@ void World::ResetSimulation()
 	// Resets the simulation
 }
 
-void World::UpdateSimulation()
+
+void World::UpdateSimulationContinuesly()
+{	
+	{
+		std::lock_guard<std::mutex> m_lk(this->mt_generation);
+		this->currentGeneration++;
+		this->cv_nextUpdate.notify_all();
+	}
+
+	auto m_begining = this->threadComboData.begin();
+	auto m_ending = this->threadComboData.end();
+	
+	while (m_begining != m_ending)
+	{
+		ThreadCombo* m_threadData = m_begining->second;
+		unsigned long m_lastGenerationValue = m_threadData->current_generation;
+		if (m_lastGenerationValue != this->currentGeneration)
+		{
+			std::unique_lock<std::mutex> m_locker(m_threadData->lock);
+			m_begining->second->cv.wait(m_locker, [this, m_threadData] {
+				return m_threadData->current_generation >= this->currentGeneration;
+			});
+		}
+		std::advance(m_begining, 1);
+	}
+	
+	bool m_wait = false;
+	{
+		std::lock_guard<std::mutex> m_locker(this->lastPartLock);
+		if (this->lastPartGeneration != this->currentGeneration)
+			m_wait = true;
+	}
+	{
+		if (m_wait)
+		{
+			std::unique_lock<std::mutex> m_locker(this->lastPartLock);
+			this->lastPartGenerationCv.wait(m_locker, [this] {
+				return this->lastPartGeneration >= this->currentGeneration;
+			});
+			m_locker.unlock();
+		}
+	}
+
+	for (std::pair<std::pair<int, int>, Cell*> m_element : this->cells)
+	{
+		if ((m_element.second->atomic_neighborCount.load() == 1 || m_element.second->atomic_neighborCount.load() == 2) &&
+			m_element.second->state != Background &&
+			m_element.second->state != Tail)
+		{
+			m_element.second->decayState = Head;
+		}
+		m_element.second->state = m_element.second->decayState;
+		m_element.second->atomic_neighborCount.store(0);
+	}
+}
+
+void World::ProcessPartContinuesly(int a_threadId, int a_threadCount)
+{
+	unsigned long m_nextToGenerateGeneration = 1;
+	std::unique_lock<std::mutex> m_lk(this->mt_generation);
+	auto m_iterator = this->cells.begin();
+	auto m_sectionEnd = this->cells.end();
+	auto m_lastEndPosition = this->cells.size();
+	long m_lastIteratorPos = 0;
+
+
+	while (!this->cancelSimulation)
+	{
+		// lk is only locked when the predicate is checked and if it returns true. 
+		// otherwise it will unlock lk allowing other threads to check the condition as well
+		// the whole loop set, see -> https://stackoverflow.com/a/2763749
+
+		this->cv_nextUpdate.wait(m_lk, [this, m_nextToGenerateGeneration] {return m_nextToGenerateGeneration <= this->currentGeneration; });
+		// unlock lk. we only needed the lock to check the currentGeneration.
+		m_lk.unlock();
+		if (!this->cancelSimulation)
+		{
+			long m_cellCount = this->cells.size();
+			long m_perThread = m_cellCount / a_threadCount;
+			long m_nextPosition = m_perThread * a_threadId;
+			long m_difference = std::distance(this->cells.begin(), m_iterator);
+			long m_toMove = m_nextPosition - m_difference;
+			std::advance(m_iterator, m_toMove);
+
+			if (m_nextPosition + m_perThread != m_lastEndPosition)
+			{
+				m_sectionEnd = this->cells.begin();
+				std::advance(m_sectionEnd, m_nextPosition + m_perThread);
+				m_lastEndPosition = m_nextPosition + m_perThread;
+			}
+#ifdef DEBUG_THREADS
+			this->coutMutex.lock();
+			std::cout << "Thread with ID: " << a_threadId << "Is doing index: " << m_nextPosition << " until " << m_lastEndPosition << std::endl;
+			this->coutMutex.unlock();
+#endif // DEBUG_THREADS
+
+			while (m_iterator != m_sectionEnd)
+			{
+				// An iterator item can be accessed like an pointer, you have to dereference it first.
+				Cell* m_cell = (*m_iterator).second;
+				if (m_cell->state == Tail)
+				{
+					m_cell->decayState = Conductor;
+				}
+				else if (m_cell->state == Head)
+				{
+					this->IncrementNeighbors(m_cell->x, m_cell->y);
+					m_cell->decayState = Tail;
+				}
+				std::advance(m_iterator, 1);
+			}
+
+			auto m_threadCombo = this->threadComboData.find(a_threadId);
+			ThreadCombo* m_threadData = m_threadCombo->second;
+			m_threadData->lock.lock();
+			m_threadData->current_generation++;
+			m_threadData->lock.unlock();
+			m_threadData->cv.notify_all();
+			m_nextToGenerateGeneration++;
+		}
+		// lock the lk again.
+		m_lk.lock();
+	}
+}
+
+void World::ProcessLastPart()
+{
+
+	unsigned long m_nextToGenerateGeneration = 1;
+	std::unique_lock<std::mutex> m_lk(this->mt_generation);
+	auto m_iterator = this->cells.begin();
+	auto m_sectionEnd = this->cells.end();
+	auto m_lastCellCount = this->cells.size();
+	long m_lastIteratorPos = 0;
+
+
+	while (!this->cancelSimulation)
+	{
+		// lk is only locked when the predicate is checked and if it returns true. 
+		// otherwise it will unlock lk allowing other threads to check the condition as well
+		// the whole loop set, see -> https://stackoverflow.com/a/2763749
+
+		this->cv_nextUpdate.wait(m_lk, [this, m_nextToGenerateGeneration] {return m_nextToGenerateGeneration <= this->currentGeneration; });
+		// unlock lk. we only needed the lock to check the currentGeneration.
+		m_lk.unlock();
+		if (!this->cancelSimulation)
+		{
+			long m_cellCount = this->cells.size();
+			long m_perThread = m_cellCount / this->totalThreads;
+			long m_nextPosition = m_perThread * this->totalThreads;
+			long m_difference = std::distance(this->cells.begin(), m_iterator);
+			long m_toMove = m_nextPosition - m_difference;
+			std::advance(m_iterator, m_toMove);
+
+			if (m_cellCount != m_lastCellCount)
+			{
+				m_sectionEnd = this->cells.end();
+				m_lastCellCount = m_nextPosition + m_perThread;
+			}
+#ifdef DEBUG_THREADS
+			this->coutMutex.lock();
+			std::cout << "Thread that does last parts: " << "Is doing index: " << m_nextPosition << " until " << m_lastCellCount << std::endl;
+			this->coutMutex.unlock();
+#endif // DEBUG_1
+
+			while (m_iterator != m_sectionEnd)
+			{
+				// An iterator item can be accessed like an pointer, you have to dereference it first.
+				Cell* m_cell = (*m_iterator).second;
+				if (m_cell->state == Tail)
+				{
+					m_cell->decayState = Conductor;
+				}
+				else if (m_cell->state == Head)
+				{
+					this->IncrementNeighbors(m_cell->x, m_cell->y);
+					m_cell->decayState = Tail;
+				}
+				std::advance(m_iterator, 1);
+			}
+
+			this->lastPartLock.lock();
+			this->lastPartGeneration++;
+			this->lastPartLock.unlock();
+			this->lastPartGenerationCv.notify_all();
+			m_nextToGenerateGeneration++;
+		}
+		// lock the lk again.
+		m_lk.lock();
+	}
+}
+
+void World::UpdateSimulationAsync()
 {
 	using std::pair;
 	using std::make_pair;
 	using std::map;
 	// Updates the simulation
+	// returns 0 when not able to detect, otherwise, the number of (logical) processors
 	unsigned maxThreads = std::thread::hardware_concurrency();
 	if (maxThreads == 0 )
 		maxThreads = 1;
@@ -64,17 +295,16 @@ void World::UpdateSimulation()
 	}
 	else
 	{
-		// returns 0 when not able to detect, otherwise, the number of (logical) processors
 		int m_perThread = this->cells.size() / (float)maxThreads;
 		std::vector<std::future<void>> m_runners;
 		for (int m_threadId = 0; m_threadId < maxThreads; m_threadId++)
 		{
 			int m_start = m_threadId * m_perThread;
 			// Start a new task and put it on the list (you cannot copy it!)
-			m_runners.push_back(std::async(std::launch::async, &World::ProcessPart, this, m_start, m_perThread));
+			m_runners.push_back(std::async(std::launch::async, &World::ProcessPartAsync, this, m_start, m_perThread));
 		}
 		int m_spentOnOthers = maxThreads * m_perThread;
-		this->ProcessPart(m_spentOnOthers, this->cells.size() - m_spentOnOthers);
+		this->ProcessPartAsync(m_spentOnOthers, this->cells.size() - m_spentOnOthers);
 		
 		std::vector<std::future<void>>::iterator m_runnerIterator = m_runners.begin();
 		while (m_runnerIterator != m_runners.end())
@@ -99,7 +329,7 @@ void World::UpdateSimulation()
 	}
 }
 
-void World::ProcessPart(int a_start, int a_count)
+void World::ProcessPartAsync(int a_start, int a_count)
 {
 	// get the iterator that is at the beginning of the world
 	// get the element at the a_start position
@@ -128,7 +358,6 @@ void World::ProcessPart(int a_start, int a_count)
 		std::advance(m_beginIterator, 1);
 	}
 }
-
 
 void World::IncrementNeighbors(int a_x, int a_y)
 {

@@ -5,7 +5,7 @@
 
 #include "world.h"
 #include "cell.h"
-using namespace std;
+#define SHOW_TYPE 2
 
 World world;
 
@@ -110,20 +110,93 @@ Cell* m_cells[] = {
 
 };
 
-void printCells();
-void addGenerator(int x, int y);
+void printCells(World const& world);
+void addGenerator(int x, int y, World& world);
 void cleanUp();
+void cleanUpWorld(World& a_world);
+bool compareWorlds(World const& a_baseWorld, World const& a_compare);
 
 void main()
 {
-	/*for (Cell* m_cell : m_cells)
+#if SHOW_TYPE == 1
+	for (Cell* m_cell : m_cells)
 	{
 		world.cells.insert(make_pair(make_pair(m_cell->x, m_cell->y), m_cell));
-	}*/
+	}
+
+	while (true)
+	{
+		world.UpdateSimulationContinuesly();
+		printCells();
+		cout << endl << endl << endl;
+		std::this_thread::sleep_for(500ms);
+		cin.get();
+	}
+
+#elif SHOW_TYPE == 2
+
+	World mulithreadWorld (true);
+	World asyncMulithreadWorld;
+	World serialWorld;
 	int xWidth = 5;
 	int yHeight = 11;
-	int xCount = 1000;
-	int yCount = 1000;
+	int xCount = 3000;
+	int yCount = 200;
+	int generatorCount = 0;
+	std::cout << "Generating world" << std::endl;
+
+	for (int x = 0; x < xCount; x += xWidth)
+	{
+		for (int y = 0; y < yCount; y += yHeight)
+		{
+			generatorCount++;
+			addGenerator(x, y, mulithreadWorld);
+			addGenerator(x, y, asyncMulithreadWorld);
+			addGenerator(x, y, serialWorld);
+		}
+	}
+	
+	int m_testGenerationCount = 100;
+
+	clock_t start_multi = clock();
+	for (int cnt = 0; cnt < m_testGenerationCount; cnt++)
+	{
+		mulithreadWorld.UpdateSimulationContinuesly();
+	}
+	clock_t end_multi = clock();
+	clock_t start_async = clock();
+	for (int cnt = 0; cnt < m_testGenerationCount; cnt++)
+	{
+		asyncMulithreadWorld.UpdateSimulationAsync();
+	}
+	clock_t end_async = clock();
+	clock_t start_serial = clock();
+	for (int cnt = 0; cnt < m_testGenerationCount; cnt++)
+	{
+		serialWorld.UpdateSimulationSerial();
+	}
+	clock_t end_serial = clock();
+
+	double ms_multi = (end_multi - start_multi) / (CLOCKS_PER_SEC / 1000);
+	double ms_async = (end_async - start_async) / (CLOCKS_PER_SEC / 1000);
+	double ms_serial = (end_serial - start_serial) / (CLOCKS_PER_SEC / 1000);
+	std::cout << "It took: " << ms_multi << " ms with continued threading. Thus " << ms_multi / m_testGenerationCount << " per cycle" << std::endl;
+	std::cout << "It took: " << ms_async << " ms with async threading. Thus " << ms_async / m_testGenerationCount << " per cycle" << std::endl;
+	std::cout << "It took: " << ms_serial << " ms with serial. Thus " << ms_serial / m_testGenerationCount << " per cycle" << std::endl;
+	printCells(mulithreadWorld);
+
+	std::cout << "Serial as base compared with multi thread: " << compareWorlds(serialWorld, mulithreadWorld) << std::endl;
+	std::cout << "Serial as base compared with async: " << compareWorlds(serialWorld, asyncMulithreadWorld) << std::endl;
+	std::cout << "Multi threaded as base compared with async: " << compareWorlds(mulithreadWorld, asyncMulithreadWorld) << std::endl;
+
+	cleanUpWorld(mulithreadWorld);
+	cleanUpWorld(asyncMulithreadWorld);
+	cleanUpWorld(serialWorld);
+#elif SHOW_TYPE == 3
+	int xWidth = 5;
+	int yHeight = 11;
+	int xCount = 30;
+	int yCount = 20;
 	int generatorCount = 0;
 	cout << "Generating world" << endl;
 
@@ -132,24 +205,35 @@ void main()
 		for (int y = 0; y < yCount; y += yHeight)
 		{
 			generatorCount++;
-			addGenerator(x, y);
+			addGenerator(x, y, world);
 		}
 	}
 	cout << "Generated " << generatorCount << " generators" << endl;
 
 	//printCells();
 	cout << endl << endl << endl;
-	int cycleCount = 15 * 1;
+	int cycleCount = 1 * 1;
 	clock_t start_time = clock();
 	for (int i = 0; i < cycleCount; i++)
 	{
-		world.UpdateSimulation();
+		world.UpdateSimulationContinuesly();
 		if (i % 10 == 0)
 			cout << "At: " << i << endl;
 	}
 	clock_t end = clock();
 	double ms = (end - start_time) / (CLOCKS_PER_SEC / 1000);
-	cout << "It took: " << ms << " ms with atomic. Thus " << ms / cycleCount << " per cycle" << endl;
+	cout << "It took: " << ms << " ms with continued threading. Thus " << ms / cycleCount << " per cycle" << endl;
+
+	start_time = clock();
+	for (int i = 0; i < cycleCount; i++)
+	{
+		world.UpdateSimulationAsync();
+		if (i % 10 == 0)
+			cout << "At: " << i << endl;
+	}
+	end = clock();
+	ms = (end - start_time) / (CLOCKS_PER_SEC / 1000);
+	cout << "It took: " << ms << " ms with std::async. Thus " << ms / cycleCount << " per cycle" << endl;
 
 	start_time = clock();
 	for (int i = 0; i < cycleCount; i++)
@@ -160,17 +244,11 @@ void main()
 	}
 	end = clock();
 	ms = (end - start_time) / (CLOCKS_PER_SEC / 1000);
-	cout << "It took: " << ms << " ms without atomic. Thus " << ms / cycleCount << " per cycle" << endl;
-	/*
-	while (true)
-	{
-		world.UpdateSimulation();
-		printCells();
-		cout << endl << endl << endl;
-		std::this_thread::sleep_for(500ms);
-	}*/
+	cout << "It took: " << ms << " ms single threaded. Thus " << ms / cycleCount << " per cycle" << endl;
+#endif
+
 	cleanUp();
-	cin.get();
+	std::cin.get();
 }
 
 void cleanUp()
@@ -179,24 +257,28 @@ void cleanUp()
 	{
 		delete m_pair.second;
 	}
+	world.cells.clear();
+
 	for (auto m_cell : m_cells)
 	{
 		delete m_cell;
 	}
 }
 
-void printCells()
+void printCells(World const& world)
 {
-	char m_stat[25][25];
-	for (int x = 0; x < 25; x++)
+	const int width = 10;
+	const int height = 10;
+	char m_stat[width][height];
+	for (int x = 0; x < width; x++)
 	{
-		for (int y = 0; y < 25; y++)
+		for (int y = 0; y < height; y++)
 		{
 			m_stat[x][y] = ' ';
 		}
 	}
 
-	for (pair<pair<int, int>, Cell*> m_cl : world.cells)
+	for (std::pair<std::pair<int, int>, Cell*> m_cl : world.cells)
 	{
 		char m_type = ' ';
 		switch (m_cl.second->state)
@@ -213,28 +295,34 @@ void printCells()
 		default:
 			break;
 		}
-		m_stat[m_cl.second->x][m_cl.second->y] = m_type;
+		if (m_cl.second->x < width && m_cl.second->y < height)
+			m_stat[m_cl.second->x][m_cl.second->y] = m_type;
 	}
 	std::string data = "";
-	for (int m_x = 0; m_x < 25; m_x++)
+	for (int m_x = 0; m_x < width; m_x++)
 	{
-		for (int m_y = 0; m_y < 25; m_y++)
+		for (int m_y = 0; m_y < height; m_y++)
 		{
 			data += m_stat[m_x][m_y];
 			data.append("  ");
 		}
 		data.append("\r\n");
 	}
-	cout << data;
+	std::cout << data;
 }
 
-void addGenerator(int x, int y)
+void addGenerator(int x, int y, World& world)
 {
+	using std::make_pair;
+	#define active
 	world.cells.insert(make_pair(make_pair(x + 0, y + 0), new Cell(x + 0, y + 0, Background)));		
-//	world.cells.insert(make_pair(make_pair(x + 0, y + 1), new Cell(x + 0, y + 1, Head)));
+#ifdef active
+	world.cells.insert(make_pair(make_pair(x + 0, y + 1), new Cell(x + 0, y + 1, Head)));
+	world.cells.insert(make_pair(make_pair(x + 0, y + 2), new Cell(x + 0, y + 2, Tail)));
+#else
 	world.cells.insert(make_pair(make_pair(x + 0, y + 1), new Cell(x + 0, y + 1, Conductor)));
-	//world.cells.insert(make_pair(make_pair(x + 0, y + 2), new Cell(x + 0, y + 2, Tail)));
 	world.cells.insert(make_pair(make_pair(x + 0, y + 2), new Cell(x + 0, y + 2, Conductor)));
+#endif // active
 	world.cells.insert(make_pair(make_pair(x + 0, y + 3), new Cell(x + 0, y + 3, Conductor)));
 	world.cells.insert(make_pair(make_pair(x + 0, y + 4), new Cell(x + 0, y + 4, Conductor)));
 	world.cells.insert(make_pair(make_pair(x + 0, y + 5), new Cell(x + 0, y + 5, Conductor)));
@@ -259,11 +347,46 @@ void addGenerator(int x, int y)
 	world.cells.insert(make_pair(make_pair(x + 2, y + 2), new Cell(x + 2, y + 2, Conductor)));
 	world.cells.insert(make_pair(make_pair(x + 2, y + 3), new Cell(x + 2, y + 3, Conductor)));
 	world.cells.insert(make_pair(make_pair(x + 2, y + 4), new Cell(x + 2, y + 4, Conductor)));
-	//world.cells.insert(make_pair(make_pair(x + 2, y + 5), new Cell(x + 2, y + 5, Tail)));
+#ifdef active
+	world.cells.insert(make_pair(make_pair(x + 2, y + 5), new Cell(x + 2, y + 5, Tail)));
+	world.cells.insert(make_pair(make_pair(x + 2, y + 6), new Cell(x + 2, y + 6, Head)));
+#else
 	world.cells.insert(make_pair(make_pair(x + 2, y + 5), new Cell(x + 2, y + 5, Conductor)));
-	//world.cells.insert(make_pair(make_pair(x + 2, y + 6), new Cell(x + 2, y + 6, Head)));
 	world.cells.insert(make_pair(make_pair(x + 2, y + 6), new Cell(x + 2, y + 6, Conductor)));
+#endif
 	world.cells.insert(make_pair(make_pair(x + 2, y + 7), new Cell(x + 2, y + 7, Conductor)));
 	world.cells.insert(make_pair(make_pair(x + 2, y + 8), new Cell(x + 2, y + 8, Conductor)));
 	world.cells.insert(make_pair(make_pair(x + 2, y + 9), new Cell(x + 2, y + 9, Background)));
+}
+
+void cleanUpWorld(World& a_world)
+{
+	for (auto m_cell : a_world.cells)
+	{
+		delete m_cell.second;
+	}
+	a_world.cells.clear();
+}
+
+bool compareWorlds(World const& a_baseWorld, World const& a_compare)
+{
+	bool m_noMatch = false;
+	for (auto m_block : a_baseWorld.cells)
+	{
+		auto m_foundPair = a_compare.cells.find(std::make_pair(m_block.second->x, m_block.second->y));
+		if (m_foundPair == a_compare.cells.end())
+		{
+			m_noMatch = true;
+			break;
+		}
+		else
+		{
+			if (m_foundPair->second->state != m_block.second->state)
+			{
+				m_noMatch = true;
+				break;
+			}
+		}
+	}
+	return m_noMatch;
 }
