@@ -176,11 +176,6 @@ void World::ProcessPartContinuesly(int a_threadId, int a_threadCount)
 				std::advance(m_sectionEnd, m_nextPosition + m_perThread);
 				m_lastEndPosition = m_nextPosition + m_perThread;
 			}
-#ifdef DEBUG_THREADS
-			this->coutMutex.lock();
-			std::cout << "Thread with ID: " << a_threadId << "Is doing index: " << m_nextPosition << " until " << m_lastEndPosition << std::endl;
-			this->coutMutex.unlock();
-#endif // DEBUG_THREADS
 
 			while (m_iterator != m_sectionEnd)
 			{
@@ -245,11 +240,6 @@ void World::ProcessLastPart()
 				m_sectionEnd = this->cells.end();
 				m_lastCellCount = m_nextPosition + m_perThread;
 			}
-#ifdef DEBUG_THREADS
-			this->coutMutex.lock();
-			std::cout << "Thread that does last parts: " << "Is doing index: " << m_nextPosition << " until " << m_lastCellCount << std::endl;
-			this->coutMutex.unlock();
-#endif // DEBUG_1
 
 			while (m_iterator != m_sectionEnd)
 			{
@@ -278,93 +268,13 @@ void World::ProcessLastPart()
 	}
 }
 
-void World::UpdateSimulationAsync()
-{
-	using std::pair;
-	using std::make_pair;
-	using std::map;
-	// Updates the simulation
-	// returns 0 when not able to detect, otherwise, the number of (logical) processors
-	unsigned maxThreads = std::thread::hardware_concurrency();
-	if (maxThreads == 0 )
-		maxThreads = 1;
-
-	if (this->cells.size() < 50 || maxThreads == 1)
-	{
-		this->UpdateSimulationSerial();
-	}
-	else
-	{
-		int m_perThread = this->cells.size() / (float)maxThreads;
-		std::vector<std::future<void>> m_runners;
-		for (int m_threadId = 0; m_threadId < maxThreads; m_threadId++)
-		{
-			int m_start = m_threadId * m_perThread;
-			// Start a new task and put it on the list (you cannot copy it!)
-			m_runners.push_back(std::async(std::launch::async, &World::ProcessPartAsync, this, m_start, m_perThread));
-		}
-		int m_spentOnOthers = maxThreads * m_perThread;
-		this->ProcessPartAsync(m_spentOnOthers, this->cells.size() - m_spentOnOthers);
-		
-		std::vector<std::future<void>>::iterator m_runnerIterator = m_runners.begin();
-		while (m_runnerIterator != m_runners.end())
-		{
-			// Force the task to be resulted by blocking the current thread until the task returns
-			(*m_runnerIterator).get();
-			m_runnerIterator++;
-		}
-
-
-		for (pair<pair<int, int>, Cell*> m_element : this->cells)
-		{
-			if ((m_element.second->atomic_neighborCount.load() == 1 || m_element.second->atomic_neighborCount.load() == 2) &&
-				m_element.second->state != Background &&
-				m_element.second->state != Tail)
-			{
-				m_element.second->decayState = Head;
-			}
-			m_element.second->state = m_element.second->decayState;
-			m_element.second->atomic_neighborCount.store(0);
-		}
-	}
-}
-
-void World::ProcessPartAsync(int a_start, int a_count)
-{
-	// get the iterator that is at the beginning of the world
-	// get the element at the a_start position
-	std::map<std::pair<int, int>, Cell*>::iterator m_beginIterator = this->cells.begin();
-	std::advance(m_beginIterator, a_start);
-	/*std::map<std::pair<int,int>, Cell*>::iterator m_beginIterator = std::next(m_fullIterator, a_start);
-	std::map<std::pair<int, int>, Cell*>::iterator m_endIterator = std::next(this->cells.begin(), ((long)a_start + (long)a_count));*/
-	// get the element that is at the end 
-	std::map<std::pair<int, int>, Cell*>::iterator m_endIterator = this->cells.begin();
-	std::advance(m_endIterator, (long)a_start + a_count);
-
-	// keep moving m_beginIterator forward until it reaches the m_endIterator position
-	while (m_beginIterator != m_endIterator)
-	{
-		// An iterator item can be accessed like an pointer, you have to dereference it first.
-		Cell* m_cell = (*m_beginIterator).second;
-		if (m_cell->state == Tail)
-		{
-			m_cell->decayState = Conductor;
-		}
-		else if (m_cell->state == Head)
-		{
-			this->IncrementNeighbors(m_cell->x, m_cell->y);
-			m_cell->decayState = Tail;
-		}
-		std::advance(m_beginIterator, 1);
-	}
-}
-
 void World::IncrementNeighbors(int a_x, int a_y)
 {
 	using std::make_pair;
 	std::pair<int, int> next;
+	auto m_end = this->cells.end();
 
-	// run through the Moore 
+	// run through the Moore neighbors
 	for (char x_offset = -1; x_offset < 2; x_offset++)
 	{
 		for (char y_offset = -1; y_offset < 2; y_offset++)
@@ -372,10 +282,10 @@ void World::IncrementNeighbors(int a_x, int a_y)
 			if (!(y_offset == 0 && x_offset == 0))
 			{
 				next = make_pair(a_x + x_offset, a_y + y_offset);
-				auto found = this->cells.find(next);
-				if (found != this->cells.end() && this->cells[next]->state == Conductor)
+				auto m_found = this->cells.find(next);
+				if (m_found != m_end && this->cells[next]->state == Conductor)
 				{
-					this->cells[next]->atomic_neighborCount.fetch_add(1);
+					m_found->second->atomic_neighborCount.fetch_add(1);
 				}
 			}
 		}

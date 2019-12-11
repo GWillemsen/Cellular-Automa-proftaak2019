@@ -7,7 +7,7 @@
 #include "cell.h"
 #define SHOW_TYPE 2
 
-World world;
+World world(true);
 
 Cell* m_cells[] = {
 	/*Generator 1*/
@@ -116,21 +116,21 @@ void cleanUp();
 void cleanUpWorld(World& a_world);
 bool compareWorlds(World const& a_baseWorld, World const& a_compare);
 
-void main()
+int main()
 {
 #if SHOW_TYPE == 1
 	for (Cell* m_cell : m_cells)
 	{
-		world.cells.insert(make_pair(make_pair(m_cell->x, m_cell->y), m_cell));
+		world.cells.insert(std::make_pair(std::make_pair(m_cell->x, m_cell->y), m_cell));
 	}
 
 	while (true)
 	{
 		world.UpdateSimulationContinuesly();
-		printCells();
-		cout << endl << endl << endl;
-		std::this_thread::sleep_for(500ms);
-		cin.get();
+		printCells(world);
+		std::cout << std::endl << std::endl << std::endl;
+		std::this_thread::sleep_for(std::chrono::milliseconds(500));
+		//std::cin.get();
 	}
 
 #elif SHOW_TYPE == 2
@@ -140,7 +140,7 @@ void main()
 	World serialWorld;
 	int xWidth = 5;
 	int yHeight = 11;
-	int xCount = 3000;
+	int xCount = 300;
 	int yCount = 200;
 	int generatorCount = 0;
 	std::cout << "Generating world" << std::endl;
@@ -151,12 +151,11 @@ void main()
 		{
 			generatorCount++;
 			addGenerator(x, y, mulithreadWorld);
-			addGenerator(x, y, asyncMulithreadWorld);
 			addGenerator(x, y, serialWorld);
 		}
 	}
 	
-	int m_testGenerationCount = 100;
+	int m_testGenerationCount = 1000;
 
 	clock_t start_multi = clock();
 	for (int cnt = 0; cnt < m_testGenerationCount; cnt++)
@@ -164,12 +163,6 @@ void main()
 		mulithreadWorld.UpdateSimulationContinuesly();
 	}
 	clock_t end_multi = clock();
-	clock_t start_async = clock();
-	for (int cnt = 0; cnt < m_testGenerationCount; cnt++)
-	{
-		asyncMulithreadWorld.UpdateSimulationAsync();
-	}
-	clock_t end_async = clock();
 	clock_t start_serial = clock();
 	for (int cnt = 0; cnt < m_testGenerationCount; cnt++)
 	{
@@ -178,17 +171,13 @@ void main()
 	clock_t end_serial = clock();
 
 	double ms_multi = (end_multi - start_multi) / (CLOCKS_PER_SEC / 1000);
-	double ms_async = (end_async - start_async) / (CLOCKS_PER_SEC / 1000);
 	double ms_serial = (end_serial - start_serial) / (CLOCKS_PER_SEC / 1000);
 	std::cout << "It took: " << ms_multi << " ms with continued threading. Thus " << ms_multi / m_testGenerationCount << " per cycle" << std::endl;
-	std::cout << "It took: " << ms_async << " ms with async threading. Thus " << ms_async / m_testGenerationCount << " per cycle" << std::endl;
 	std::cout << "It took: " << ms_serial << " ms with serial. Thus " << ms_serial / m_testGenerationCount << " per cycle" << std::endl;
 	printCells(mulithreadWorld);
 
 	std::cout << "Serial as base compared with multi thread: " << compareWorlds(serialWorld, mulithreadWorld) << std::endl;
-	std::cout << "Serial as base compared with async: " << compareWorlds(serialWorld, asyncMulithreadWorld) << std::endl;
-	std::cout << "Multi threaded as base compared with async: " << compareWorlds(mulithreadWorld, asyncMulithreadWorld) << std::endl;
-
+	
 	cleanUpWorld(mulithreadWorld);
 	cleanUpWorld(asyncMulithreadWorld);
 	cleanUpWorld(serialWorld);
@@ -198,7 +187,7 @@ void main()
 	int xCount = 30;
 	int yCount = 20;
 	int generatorCount = 0;
-	cout << "Generating world" << endl;
+	std::cout << "Generating world" << std::endl;
 
 	for (int x = 0; x < xCount; x += xWidth)
 	{
@@ -208,47 +197,38 @@ void main()
 			addGenerator(x, y, world);
 		}
 	}
-	cout << "Generated " << generatorCount << " generators" << endl;
+	std::cout << "Generated " << generatorCount << " generators" << std::endl;
 
 	//printCells();
-	cout << endl << endl << endl;
+	std::cout << std::endl << std::endl << std::endl;
 	int cycleCount = 1 * 1;
 	clock_t start_time = clock();
 	for (int i = 0; i < cycleCount; i++)
 	{
 		world.UpdateSimulationContinuesly();
 		if (i % 10 == 0)
-			cout << "At: " << i << endl;
+			std::cout << "At: " << i << std::endl;
 	}
 	clock_t end = clock();
 	double ms = (end - start_time) / (CLOCKS_PER_SEC / 1000);
-	cout << "It took: " << ms << " ms with continued threading. Thus " << ms / cycleCount << " per cycle" << endl;
-
-	start_time = clock();
-	for (int i = 0; i < cycleCount; i++)
-	{
-		world.UpdateSimulationAsync();
-		if (i % 10 == 0)
-			cout << "At: " << i << endl;
-	}
-	end = clock();
-	ms = (end - start_time) / (CLOCKS_PER_SEC / 1000);
-	cout << "It took: " << ms << " ms with std::async. Thus " << ms / cycleCount << " per cycle" << endl;
+	std::cout << "It took: " << ms << " ms with continued threading. Thus " << ms / cycleCount << " per cycle" << std::endl;
 
 	start_time = clock();
 	for (int i = 0; i < cycleCount; i++)
 	{
 		world.UpdateSimulationSerial();
 		if (i % 10 == 0)
-			cout << "At: " << i << endl;
+			std::cout << "At: " << i << std::endl;
 	}
 	end = clock();
 	ms = (end - start_time) / (CLOCKS_PER_SEC / 1000);
-	cout << "It took: " << ms << " ms single threaded. Thus " << ms / cycleCount << " per cycle" << endl;
+	std::cout << "It took: " << ms << " ms single threaded. Thus " << ms / cycleCount << " per cycle" << std::endl;
 #endif
 
 	cleanUp();
+	std::cout << "Done with cleanup";
 	std::cin.get();
+	return 1;
 }
 
 void cleanUp()

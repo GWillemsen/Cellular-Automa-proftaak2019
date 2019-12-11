@@ -30,15 +30,10 @@ private:
 
 	std::string filePath;
 	bool cancelSimulation = false;
+	std::mutex mt_generation;
 	std::vector<std::thread> vec_simUpdaters;
 	std::condition_variable cv_nextUpdate;
-	std::mutex mt_generation;
-	//std::map<int, std::pair<std::mutex, std::pair<unsigned long, std::condition_variable>>> threadAndCurrentGenSignaling;
-	/*std::map<int, std::unique_ptr<std::mutex>> threadMutexes;
-	std::map<int, std::pair<unsigned long, std::condition_variable>> threadGenerationsAndUpdateLock;
-	*/
 	std::map<int, ThreadCombo*> threadComboData;
-	std::mutex coutMutex;
 	int totalThreads;
 	std::mutex lastPartLock;
 	std::condition_variable lastPartGenerationCv;
@@ -60,7 +55,6 @@ private:
 	void EmptyWorld();
 	void IncrementNeighbors(int x, int y);
 	void IncrementNeighborsOld(int x, int y);
-	void ProcessPartAsync(int start, int end);
 	void ProcessPartContinuesly(int a_threadId, int a_maxThreads);
 	void ProcessLastPart();
 public:
@@ -68,7 +62,6 @@ public:
 		
 	}
 	World(bool a_mulithreaded);
-	void UpdateSimulationAsync();
 	void UpdateSimulationContinuesly();
 	void UpdateSimulationSerial();
 	void Save(std::string a_worldName);
