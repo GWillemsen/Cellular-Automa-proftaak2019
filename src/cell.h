@@ -5,9 +5,9 @@
 
 enum CellState
 {
-	Head = 0,
-	Tail = 1,
-	Conductor = 2,
+	Conductor = 0,
+	Head = 1,
+	Tail = 2,
 	Background = 3
 };
 

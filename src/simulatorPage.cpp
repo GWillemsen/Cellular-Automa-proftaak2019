@@ -1,6 +1,6 @@
 #include <thread>
 #include <iostream>
-#include <vector>
+#include <map>
 #include <glad\glad.h>
 #include <glm\glm.hpp>
 #include <GLFW\glfw3.h>
@@ -32,7 +32,7 @@ unsigned int cellIndices[] = {
 };
 
 // Cell debug variables
-std::vector<std::pair<int, int>> debugCellLocations;
+std::map<std::pair<int, int>, CellState> debugCellLocations;
 
 SimulatorPage::SimulatorPage(GLFWwindow* a_window) : Page(a_window, "SimulatorPage")
 {
@@ -84,13 +84,13 @@ void SimulatorPage::InitOpenGL()
 	glEnableVertexAttribArray(0);
 
 	// Fill the cell locations
-	debugCellLocations.push_back(std::make_pair(1, 1));
-	debugCellLocations.push_back(std::make_pair(2, 2));
-	debugCellLocations.push_back(std::make_pair(3, 3));
+	debugCellLocations.insert(std::make_pair(std::make_pair(1, 1), CellState::Conductor));
+	debugCellLocations.insert(std::make_pair(std::make_pair(2, 2), CellState::Conductor));
+	debugCellLocations.insert(std::make_pair(std::make_pair(3, 3), CellState::Head));
 	// Out of bounds
-	debugCellLocations.push_back(std::make_pair(40, 4));
-	debugCellLocations.push_back(std::make_pair(41, 5));
-	debugCellLocations.push_back(std::make_pair(42, 6));
+	debugCellLocations.insert(std::make_pair(std::make_pair(40, 1), CellState::Conductor));
+	debugCellLocations.insert(std::make_pair(std::make_pair(41, 2), CellState::Conductor));
+	debugCellLocations.insert(std::make_pair(std::make_pair(42, 3), CellState::Conductor));
 
 	this->cellSizeDivisor = 48;
 
@@ -230,7 +230,7 @@ void SimulatorPage::RenderGrid()
 	glUniformMatrix4fv(matrixUniform, 1, GL_FALSE, &this->projectionMatrix[0][0]);
 
 	// Set the line width to 4
-	glLineWidth(4);
+	glLineWidth(this->lineThickness);
 
 	// Draw vertical lines
 	int loopAmount = (this->screenWidth / this->cellSizeDivisor);
@@ -254,8 +254,6 @@ void SimulatorPage::HandleInput(GLFWwindow* a_window)
 	// If the escape key gets pressed, close the window
 	if (glfwGetKey(a_window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(this->window, true);
-
-	//std::cout << "sx: " << this->cellScrollOffsetX << " sy: " << this->cellScrollOffsetY << std::endl;
 }
 
 void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_posY)
@@ -266,12 +264,10 @@ void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_pos
 
 	// Update the current hovered grid cols
 	if (this->curColHoveredX != m_cellX)
-		this->curColHoveredX = m_cellX;
+		this->curColHoveredX = m_cellX + this->cellScrollOffsetX;
 
 	if (this->curColHoveredY != m_cellY)
-		this->curColHoveredY = m_cellY;
-
-	//std::cout << "cellX: " << m_cellX << "cellY: " << m_cellY << std::endl;
+		this->curColHoveredY = m_cellY + this->cellScrollOffsetY;
 }
 
 void SimulatorPage::MouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods)
@@ -279,17 +275,32 @@ void SimulatorPage::MouseClick(GLFWwindow* a_window, int a_button, int a_action,
 	// Left mouse click
 	if (a_button == 0 && a_action == 1)
 	{
-		this->cellScrollOffsetX -= 1;
-	}
-	// Right mouse click
-	else if (a_button == 1 && a_action == 1)
-	{
-		this->cellScrollOffsetX += 1;
-	}
+		auto m_foundElement = debugCellLocations.find(std::make_pair(this->curColHoveredX, this->curColHoveredY));
 
-	std::cout << this->cellScrollOffsetX << std::endl;
+		if (m_foundElement == debugCellLocations.end())
+		{
+			debugCellLocations.insert(std::make_pair(std::make_pair(this->curColHoveredX, this->curColHoveredY), CellState::Conductor));
+		}
+		else
+		{
+			// Cycle through the cellstates
+			if(m_foundElement->second == CellState::Background)
+			{
+				debugCellLocations.erase(m_foundElement);
+			}
+			else
+			{
+				// Get the cellstate and increment it
+				int m_state = m_foundElement->second;
+				m_state++;
+					
+				std::cout << (CellState)m_state << std::endl;
 
-	//std::cout << "Button: " << a_button << "Action: " << a_action << "Mods: " << a_mods << std::endl;
+				// Modify the state of the cell pointer
+				m_foundElement->second = (CellState)m_state;
+			}
+		}
+	}
 }
 
 // Cell rendering
@@ -316,30 +327,21 @@ void SimulatorPage::RenderCells()
 	glUniform1f(cellWidthUniform, 1.0f / (this->screenWidth / this->cellSizeDivisor));
 	glUniform1f(cellHeightUniform, 1.0f / (this->screenHeight / this->cellSizeDivisor));
 
-	// Create a new iterator pointer, this is needed to loop through the vector pairs
-	std::vector<std::pair<int, int>>::iterator m_iteratorPointer;
-
-	// Loop through the vector pairs
-	for (m_iteratorPointer = debugCellLocations.begin(); m_iteratorPointer < debugCellLocations.end(); m_iteratorPointer++)
+	// Loop through the 	
+	for (auto m_pair : debugCellLocations)
 	{
 		int m_viewportWidthMax = (int)(this->screenWidth / this->cellSizeDivisor) + this->cellScrollOffsetX;
 		int m_viewportHeightMax = (int)(this->screenHeight/ this->cellSizeDivisor) + this->cellScrollOffsetY;
 
-		//std::cout << m_viewportWidthMax << std::endl;
-
-		/*std::cout << "x" << m_iteratorPointer->first << "y" << m_iteratorPointer->second
-			<< " minX: " << this->cellScrollOffsetX << "maxX: " << m_viewportWidthMax
-			<< " minY: " << this->cellScrollOffsetY << " maxY: " << m_viewportHeightMax << std::endl;*/
-
-		if (m_iteratorPointer->first >= this->cellScrollOffsetX && m_iteratorPointer->first < m_viewportWidthMax &&
-			m_iteratorPointer->second >= this->cellScrollOffsetY && m_iteratorPointer->second < m_viewportHeightMax
+		if (m_pair.first.first >= this->cellScrollOffsetX && m_pair.first.first < m_viewportWidthMax &&
+			m_pair.first.second >= this->cellScrollOffsetY && m_pair.first.second < m_viewportHeightMax
 			)
 		{
 			Cell m_cell = Cell();
 
-			m_cell.x = m_iteratorPointer->first;
-			m_cell.y = m_iteratorPointer->second;
-			m_cell.cellState = CellState::Conductor;
+			m_cell.x = m_pair.first.first;
+			m_cell.y = m_pair.first.second;
+			m_cell.cellState = m_pair.second;
 
 			int cellOffsetVerticalUniform = this->gridCellShader.getUniformLocation("u_VerticalOffset");
 			int cellOffsetHorizontalUniform = this->gridCellShader.getUniformLocation("u_HorizontalOffset");

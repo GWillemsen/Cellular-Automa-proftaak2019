@@ -34,6 +34,7 @@ private:
 	glm::vec3 lineColor = glm::vec3(1.5f, 1.5f, 1.5f);
 
 	int cellSizeDivisor = 32;
+	int lineThickness = 4;
 	int curColHoveredX = 0;
 	int curColHoveredY = 0;
 	
