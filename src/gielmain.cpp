@@ -5,7 +5,7 @@
 
 #include "world.h"
 #include "cell.h"
-#define SHOW_TYPE 2
+#define SHOW_TYPE 3
 
 World world(true);
 
@@ -126,7 +126,7 @@ int main()
 
 	while (true)
 	{
-		world.UpdateSimulationContinuesly();
+		world.UpdateSimulationWithSingleGeneration();
 		printCells(world);
 		std::cout << std::endl << std::endl << std::endl;
 		std::this_thread::sleep_for(std::chrono::milliseconds(500));
@@ -140,55 +140,64 @@ int main()
 	World serialWorld;
 	int xWidth = 5;
 	int yHeight = 11;
-	int xCount = 300;
-	int yCount = 200;
+	int xCount = 30;
+	int yCount = 20;
+	int x = 0;
+	int y = 0;
 	int generatorCount = 0;
 	std::cout << "Generating world" << std::endl;
 
-	for (int x = 0; x < xCount; x += xWidth)
+	for (int i = 0; i < 8; i++)
 	{
-		for (int y = 0; y < yCount; y += yHeight)
+		xCount *= 5;
+		yCount *= 5;
+		for (; x < xCount; x += xWidth)
 		{
-			generatorCount++;
-			addGenerator(x, y, mulithreadWorld);
-			addGenerator(x, y, serialWorld);
+			for (; y < yCount; y += yHeight)
+			{
+				generatorCount++;
+				addGenerator(x, y, mulithreadWorld);
+				addGenerator(x, y, serialWorld);
+			}
 		}
-	}
-	
-	int m_testGenerationCount = 1000;
 
-	clock_t start_multi = clock();
-	for (int cnt = 0; cnt < m_testGenerationCount; cnt++)
-	{
-		mulithreadWorld.UpdateSimulationContinuesly();
-	}
-	clock_t end_multi = clock();
-	clock_t start_serial = clock();
-	for (int cnt = 0; cnt < m_testGenerationCount; cnt++)
-	{
-		serialWorld.UpdateSimulationSerial();
-	}
-	clock_t end_serial = clock();
+		int m_testGenerationCount = 10;
+		std::cout << "Testing with " << generatorCount << " generators (maxX: " << xCount << " maxY: " << yCount << ", cell cnt: " << mulithreadWorld.cells.size() << ")" << std::endl;
+		clock_t start_multi = clock();
+		for (int cnt = 0; cnt < m_testGenerationCount; cnt++)
+		{
+			mulithreadWorld.UpdateSimulationWithSingleGeneration();
+		}
+		clock_t end_multi = clock();
+		std::cout << "Starting serial test" << std::endl;
+		clock_t start_serial = clock();
+		for (int cnt = 0; cnt < m_testGenerationCount; cnt++)
+		{
+			serialWorld.UpdateSimulationSerial();
+		}
+		clock_t end_serial = clock();
 
-	double ms_multi = (end_multi - start_multi) / (CLOCKS_PER_SEC / 1000);
-	double ms_serial = (end_serial - start_serial) / (CLOCKS_PER_SEC / 1000);
-	std::cout << "It took: " << ms_multi << " ms with continued threading. Thus " << ms_multi / m_testGenerationCount << " per cycle" << std::endl;
-	std::cout << "It took: " << ms_serial << " ms with serial. Thus " << ms_serial / m_testGenerationCount << " per cycle" << std::endl;
-	printCells(mulithreadWorld);
+		double ms_multi = (end_multi - start_multi) / (CLOCKS_PER_SEC / 1000);
+		double ms_serial = (end_serial - start_serial) / (CLOCKS_PER_SEC / 1000);
+		std::cout << "It took: " << ms_multi << "	ms with continued threading. Thus " << ms_multi / m_testGenerationCount << " per cycle" << std::endl;
+		std::cout << "It took: " << ms_serial << "		     ms with serial. Thus " << ms_serial / m_testGenerationCount << " per cycle" << std::endl;
 
-	std::cout << "Serial as base compared with multi thread: " << compareWorlds(serialWorld, mulithreadWorld) << std::endl;
-	
+
+		std::cout << "Serial as base compared with multi thread: " << compareWorlds(serialWorld, mulithreadWorld) << std::endl;
+		std::cout << std::endl << std::endl;
+	}
+
 	cleanUpWorld(mulithreadWorld);
 	cleanUpWorld(asyncMulithreadWorld);
 	cleanUpWorld(serialWorld);
 #elif SHOW_TYPE == 3
 	int xWidth = 5;
 	int yHeight = 11;
-	int xCount = 30;
-	int yCount = 20;
+	int xCount = 3000;
+	int yCount = 200;
 	int generatorCount = 0;
 	std::cout << "Generating world" << std::endl;
-
+	auto result = world.GetCopyOfCellAt(1, 5);
 	for (int x = 0; x < xCount; x += xWidth)
 	{
 		for (int y = 0; y < yCount; y += yHeight)
@@ -201,11 +210,11 @@ int main()
 
 	//printCells();
 	std::cout << std::endl << std::endl << std::endl;
-	int cycleCount = 1 * 1;
+	int cycleCount = 10 * 5;
 	clock_t start_time = clock();
 	for (int i = 0; i < cycleCount; i++)
 	{
-		world.UpdateSimulationContinuesly();
+		world.UpdateSimulationWithSingleGeneration();
 		if (i % 10 == 0)
 			std::cout << "At: " << i << std::endl;
 	}
@@ -213,7 +222,7 @@ int main()
 	double ms = (end - start_time) / (CLOCKS_PER_SEC / 1000);
 	std::cout << "It took: " << ms << " ms with continued threading. Thus " << ms / cycleCount << " per cycle" << std::endl;
 
-	start_time = clock();
+	/*start_time = clock();
 	for (int i = 0; i < cycleCount; i++)
 	{
 		world.UpdateSimulationSerial();
@@ -223,12 +232,44 @@ int main()
 	end = clock();
 	ms = (end - start_time) / (CLOCKS_PER_SEC / 1000);
 	std::cout << "It took: " << ms << " ms single threaded. Thus " << ms / cycleCount << " per cycle" << std::endl;
+	*/
+#elif SHOW_TYPE == 4
+
+	world.PauzeSimulation();
+	for (Cell* m_cell : m_cells)
+	{
+		world.cells.insert(std::make_pair(std::make_pair(m_cell->x, m_cell->y), m_cell));
+	}
+
+	std::this_thread::sleep_for(std::chrono::seconds(2));
+	world.StartSimulation();
+	int cnt = 0;
+	world.SetTargetSpeed(3);
+	while (true)
+	{
+		std::this_thread::sleep_for(std::chrono::milliseconds(200));
+		printCells(world);
+		cnt++;
+		if (cnt == 20)
+			world.PauzeSimulation();
+		else if (cnt == 40)
+			world.StartSimulation();
+		else if (cnt == 60)
+			world.SetTargetSpeed(3);
+		else if (cnt == 80)
+			world.SetTargetSpeed(.3f);
+	}
+	std::this_thread::sleep_for(std::chrono::seconds(20));
+	world.PauzeSimulation();
+	
+
 #endif
 
 	cleanUp();
 	std::cout << "Done with cleanup";
 	std::cin.get();
-	return 1;
+	exit(0);
+	return 0;
 }
 
 void cleanUp()
@@ -258,10 +299,10 @@ void printCells(World const& world)
 		}
 	}
 
-	for (std::pair<std::pair<int, int>, Cell*> m_cl : world.cells)
+	for (auto m_cellPair : world.cells)
 	{
 		char m_type = ' ';
-		switch (m_cl.second->state)
+		switch (m_cellPair.second->state)
 		{
 		case Head:
 			m_type = 'H';
@@ -275,8 +316,8 @@ void printCells(World const& world)
 		default:
 			break;
 		}
-		if (m_cl.second->x < width && m_cl.second->y < height)
-			m_stat[m_cl.second->x][m_cl.second->y] = m_type;
+		if (m_cellPair.second->x < width && m_cellPair.second->y < height)
+			m_stat[m_cellPair.second->x][m_cellPair.second->y] = m_type;
 	}
 	std::string data = "";
 	for (int m_x = 0; m_x < width; m_x++)
@@ -305,8 +346,13 @@ void addGenerator(int x, int y, World& world)
 #endif // active
 	world.cells.insert(make_pair(make_pair(x + 0, y + 3), new Cell(x + 0, y + 3, Conductor)));
 	world.cells.insert(make_pair(make_pair(x + 0, y + 4), new Cell(x + 0, y + 4, Conductor)));
+#ifdef active
+	world.cells.insert(make_pair(make_pair(x + 0, y + 5), new Cell(x + 0, y + 5, Head)));
+	world.cells.insert(make_pair(make_pair(x + 0, y + 6), new Cell(x + 0, y + 6, Tail)));
+#else
 	world.cells.insert(make_pair(make_pair(x + 0, y + 5), new Cell(x + 0, y + 5, Conductor)));
 	world.cells.insert(make_pair(make_pair(x + 0, y + 6), new Cell(x + 0, y + 6, Conductor)));
+#endif
 	world.cells.insert(make_pair(make_pair(x + 0, y + 7), new Cell(x + 0, y + 7, Conductor)));
 	world.cells.insert(make_pair(make_pair(x + 0, y + 8), new Cell(x + 0, y + 8, Conductor)));
 	world.cells.insert(make_pair(make_pair(x + 0, y + 9), new Cell(x + 0, y + 9, Background)));
@@ -324,16 +370,16 @@ void addGenerator(int x, int y, World& world)
 
 	world.cells.insert(make_pair(make_pair(x + 2, y + 0), new Cell(x + 2, y + 0, Background)));
 	world.cells.insert(make_pair(make_pair(x + 2, y + 1), new Cell(x + 2, y + 1, Conductor)));
+#ifdef active
+	world.cells.insert(make_pair(make_pair(x + 2, y + 2), new Cell(x + 2, y + 2, Tail)));
+	world.cells.insert(make_pair(make_pair(x + 2, y + 3), new Cell(x + 2, y + 3, Head)));
+#else
 	world.cells.insert(make_pair(make_pair(x + 2, y + 2), new Cell(x + 2, y + 2, Conductor)));
 	world.cells.insert(make_pair(make_pair(x + 2, y + 3), new Cell(x + 2, y + 3, Conductor)));
+#endif
 	world.cells.insert(make_pair(make_pair(x + 2, y + 4), new Cell(x + 2, y + 4, Conductor)));
-#ifdef active
-	world.cells.insert(make_pair(make_pair(x + 2, y + 5), new Cell(x + 2, y + 5, Tail)));
-	world.cells.insert(make_pair(make_pair(x + 2, y + 6), new Cell(x + 2, y + 6, Head)));
-#else
 	world.cells.insert(make_pair(make_pair(x + 2, y + 5), new Cell(x + 2, y + 5, Conductor)));
 	world.cells.insert(make_pair(make_pair(x + 2, y + 6), new Cell(x + 2, y + 6, Conductor)));
-#endif
 	world.cells.insert(make_pair(make_pair(x + 2, y + 7), new Cell(x + 2, y + 7, Conductor)));
 	world.cells.insert(make_pair(make_pair(x + 2, y + 8), new Cell(x + 2, y + 8, Conductor)));
 	world.cells.insert(make_pair(make_pair(x + 2, y + 9), new Cell(x + 2, y + 9, Background)));

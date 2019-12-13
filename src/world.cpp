@@ -1,7 +1,6 @@
 #include <thread>
 #include <mutex>
 #include <iterator>
-#include <future>
 #include <chrono>
 
 #include "world.h"
@@ -24,36 +23,28 @@ World::World(bool a_multithreaded)
 {
 	using std::pair;
 	using std::make_pair;
+	this->totalThreads = 0;
+	this->cancelSimulation = false;
+	this->pauzeSimulation = true;
+	this->currentGeneration = 0;
+	this->lastPartGeneration = 0;
+	this->lastUpdateDuration = 0;
+	this->targetSimulationSpeed = 1.0f;
 	if (!a_multithreaded)
 		return;
 	// returns 0 when not able to detect, otherwise, the number of (logical) processors
-	unsigned int maxThreads = std::thread::hardware_concurrency();
-	if (maxThreads == 0)
-		maxThreads = 1;
-	maxThreads--;
-	for (unsigned int m_threadId = 0; m_threadId < maxThreads; m_threadId++)
+	this->totalThreads = std::thread::hardware_concurrency();
+	if (this->totalThreads == 0)
+		this->totalThreads = 1;
+	this->totalThreads--;
+	for (unsigned int m_threadId = 0; m_threadId < this->totalThreads; m_threadId++)
 	{
-		this->vec_simUpdaters.emplace_back(std::thread(&World::ProcessPartContinuesly, this, m_threadId, maxThreads));
+		this->simUpdaters.emplace_back(std::thread(&World::ProcessPartContinuesly, this, m_threadId, this->totalThreads));
 		this->threadComboData.emplace(make_pair(m_threadId, new ThreadCombo()));
-		//std::map<int, std::pair<std::mutex, std::pair<unsigned long, std::condition_variable>>>
-		//const int val = 0;
-		//this->threadAndCurrentGenSignaling2.insert(std::make_pair(m_mute, std::make_pair(10, 1)));
-		//this->threadMutexes.insert(make_pair(0, std::make_pair(std::make_unique<std::mutex>(), std::make_pair((unsigned long)0, std::make_unique<std::condition_variable>()))));
-		/*this->threadAndCurrentGenSignaling.insert(
-			std::make_pair(
-				m_threadId, 
-				std::make_pair(
-					m_mutex,
-					std::make_pair(
-						(unsigned long)0,
-						m_cv
-					)
-				)
-			)
-		);*/
 	}
-	this->totalThreads = maxThreads;
+	this->totalThreads++;
 	this->lastPartProcessor = std::thread(&World::ProcessLastPart, this);
+	this->timerThread = std::thread(&World::TimerThread, this);
 }
 
 void World::Save(std::string a_worldName)
@@ -74,11 +65,17 @@ void World::SaveAsTemplate(std::string a_worldName)
 void World::StartSimulation()
 {
 	// Starts the simulation
+	std::lock_guard<std::mutex> m_lk(this->simCalcUpdateLock);
+	this->pauzeSimulation = false;
+	this->lastPartGenerationCv.notify_all();
 }
 
 void World::PauzeSimulation()
 {
-	// Pauzes the simulation
+	// Pauses the simulation
+	std::lock_guard<std::mutex> m_lk(this->simCalcUpdateLock);
+	this->pauzeSimulation = true;
+	this->lastPartGenerationCv.notify_all();
 }
 
 void World::ResetSimulation()
@@ -86,14 +83,14 @@ void World::ResetSimulation()
 	// Resets the simulation
 }
 
-
-void World::UpdateSimulationContinuesly()
-{	
+void World::UpdateSimulationWithSingleGeneration()
+{
+	// 
 	{
-		std::lock_guard<std::mutex> m_lk(this->mt_generation);
+		std::lock_guard<std::mutex> m_lk(this->currentGenerationLock);
 		this->currentGeneration++;
-		this->cv_nextUpdate.notify_all();
 	}
+	this->nextUpdateCv.notify_all();
 
 	auto m_begining = this->threadComboData.begin();
 	auto m_ending = this->threadComboData.end();
@@ -118,34 +115,36 @@ void World::UpdateSimulationContinuesly()
 		if (this->lastPartGeneration != this->currentGeneration)
 			m_wait = true;
 	}
+
+	if (m_wait)
 	{
-		if (m_wait)
-		{
-			std::unique_lock<std::mutex> m_locker(this->lastPartLock);
-			this->lastPartGenerationCv.wait(m_locker, [this] {
-				return this->lastPartGeneration >= this->currentGeneration;
-			});
-			m_locker.unlock();
-		}
+		std::unique_lock<std::mutex> m_locker(this->lastPartLock);
+		this->lastPartGenerationCv.wait(m_locker, [this] {
+			return this->lastPartGeneration >= this->currentGeneration;
+		});
+		m_locker.unlock();
 	}
 
-	for (std::pair<std::pair<int, int>, Cell*> m_element : this->cells)
+	//TODO multi thread this too?
+	for (auto m_cellPair : this->cells)
 	{
-		if ((m_element.second->atomic_neighborCount.load() == 1 || m_element.second->atomic_neighborCount.load() == 2) &&
-			m_element.second->state != Background &&
-			m_element.second->state != Tail)
+		if ((m_cellPair.second->atomic_neighborCount.load() == 1 ||
+			 m_cellPair.second->atomic_neighborCount.load() == 2) &&
+			m_cellPair.second->state != Background &&
+			m_cellPair.second->state != Tail)
 		{
-			m_element.second->decayState = Head;
+			m_cellPair.second->decayState = Head;
 		}
-		m_element.second->state = m_element.second->decayState;
-		m_element.second->atomic_neighborCount.store(0);
+		m_cellPair.second->state = m_cellPair.second->decayState;
+		m_cellPair.second->atomic_neighborCount.store(0);
 	}
 }
 
-void World::ProcessPartContinuesly(int a_threadId, int a_threadCount)
+void World::ProcessPartContinuesly(unsigned int a_threadId, unsigned int a_threadCount)
 {
+	using std::pair;
 	unsigned long m_nextToGenerateGeneration = 1;
-	std::unique_lock<std::mutex> m_lk(this->mt_generation);
+	std::unique_lock<std::mutex> m_lk(this->currentGenerationLock);
 	auto m_iterator = this->cells.begin();
 	auto m_sectionEnd = this->cells.end();
 	auto m_lastEndPosition = this->cells.size();
@@ -158,11 +157,14 @@ void World::ProcessPartContinuesly(int a_threadId, int a_threadCount)
 		// otherwise it will unlock lk allowing other threads to check the condition as well
 		// the whole loop set, see -> https://stackoverflow.com/a/2763749
 
-		this->cv_nextUpdate.wait(m_lk, [this, m_nextToGenerateGeneration] {return m_nextToGenerateGeneration <= this->currentGeneration; });
+		this->nextUpdateCv.wait(m_lk, [this, m_nextToGenerateGeneration] {
+			return m_nextToGenerateGeneration <= this->currentGeneration || this->cancelSimulation;
+		});
 		// unlock lk. we only needed the lock to check the currentGeneration.
 		m_lk.unlock();
 		if (!this->cancelSimulation)
 		{
+			this->cellsEditLock.lock_shared();
 			long m_cellCount = this->cells.size();
 			long m_perThread = m_cellCount / a_threadCount;
 			long m_nextPosition = m_perThread * a_threadId;
@@ -192,6 +194,7 @@ void World::ProcessPartContinuesly(int a_threadId, int a_threadCount)
 				}
 				std::advance(m_iterator, 1);
 			}
+			this->cellsEditLock.unlock_shared();
 
 			auto m_threadCombo = this->threadComboData.find(a_threadId);
 			ThreadCombo* m_threadData = m_threadCombo->second;
@@ -208,9 +211,8 @@ void World::ProcessPartContinuesly(int a_threadId, int a_threadCount)
 
 void World::ProcessLastPart()
 {
-
 	unsigned long m_nextToGenerateGeneration = 1;
-	std::unique_lock<std::mutex> m_lk(this->mt_generation);
+	std::unique_lock<std::mutex> m_lk(this->currentGenerationLock);
 	auto m_iterator = this->cells.begin();
 	auto m_sectionEnd = this->cells.end();
 	auto m_lastCellCount = this->cells.size();
@@ -223,11 +225,12 @@ void World::ProcessLastPart()
 		// otherwise it will unlock lk allowing other threads to check the condition as well
 		// the whole loop set, see -> https://stackoverflow.com/a/2763749
 
-		this->cv_nextUpdate.wait(m_lk, [this, m_nextToGenerateGeneration] {return m_nextToGenerateGeneration <= this->currentGeneration; });
+		this->nextUpdateCv.wait(m_lk, [this, m_nextToGenerateGeneration] {return m_nextToGenerateGeneration <= this->currentGeneration || this->cancelSimulation; });
 		// unlock lk. we only needed the lock to check the currentGeneration.
 		m_lk.unlock();
 		if (!this->cancelSimulation)
 		{
+			this->cellsEditLock.lock_shared();
 			long m_cellCount = this->cells.size();
 			long m_perThread = m_cellCount / this->totalThreads;
 			long m_nextPosition = m_perThread * this->totalThreads;
@@ -257,6 +260,7 @@ void World::ProcessLastPart()
 				std::advance(m_iterator, 1);
 			}
 
+			this->cellsEditLock.unlock_shared();
 			this->lastPartLock.lock();
 			this->lastPartGeneration++;
 			this->lastPartLock.unlock();
@@ -268,21 +272,20 @@ void World::ProcessLastPart()
 	}
 }
 
-void World::IncrementNeighbors(int a_x, int a_y)
+void World::IncrementNeighbors(long a_x, long a_y)
 {
-	using std::make_pair;
-	std::pair<int, int> next;
+	std::pair<long, long> m_toFindPair;
 	auto m_end = this->cells.end();
 
 	// run through the Moore neighbors
-	for (char x_offset = -1; x_offset < 2; x_offset++)
+	for (char m_xOffset = -1; m_xOffset < 2; m_xOffset++)
 	{
-		for (char y_offset = -1; y_offset < 2; y_offset++)
+		for (char m_yOffset = -1; m_yOffset < 2; m_yOffset++)
 		{
-			if (!(y_offset == 0 && x_offset == 0))
+			if (!(m_yOffset == 0 && m_xOffset == 0))
 			{
-				next = make_pair(a_x + x_offset, a_y + y_offset);
-				auto m_found = this->cells.find(next);
+				m_toFindPair = std::make_pair(a_x + m_xOffset, a_y + m_yOffset);
+				auto m_found = this->cells.find(m_toFindPair);
 				if (m_found != m_end && m_found->second->state == Conductor)
 				{
 					m_found->second->atomic_neighborCount.fetch_add(1);
@@ -292,69 +295,117 @@ void World::IncrementNeighbors(int a_x, int a_y)
 	}
 }
 
-void World::UpdateSimulationSerial()
+void World::SetTargetSpeed(float a_targetSpeed)
 {
-	using std::pair;
-	using std::make_pair;
-	using std::map;
-
-	// Updates the simulation
-
-	// Write simulation logic here...
-
-	for (pair<pair<int, int>, Cell*> m_element : this->cells)
-	{
-		if (m_element.second->state == Tail)
-		{
-			m_element.second->decayState = Conductor;
-		}
-		else if (m_element.second->state == Head)
-		{
-			this->IncrementNeighborsOld(m_element.second->x, m_element.second->y);
-			m_element.second->decayState = Tail;
-		}
-	}
-
-	for (pair<pair<int, int>, Cell*> m_element : this->cells)
-	{
-		if ((m_element.second->neighborCount == 1 || m_element.second->neighborCount == 2) &&
-			m_element.second->state != Background &&
-			m_element.second->state != Tail)
-		{
-			m_element.second->decayState = Head;
-		}
-		m_element.second->state = m_element.second->decayState;
-		m_element.second->neighborCount = 0;
-	}
+	this->simCalcUpdateLock.lock();
+	this->targetSimulationSpeed = a_targetSpeed;
+	this->simCalcUpdateLock.unlock();
+	this->simCalcUpdate.notify_all();
 }
 
-void World::IncrementNeighborsOld(int a_x, int a_y)
+void World::TimerThread()
 {
-	using std::make_pair;
-	std::pair<int, int> next;
-
-	// run through the Moore 
-	for (char x_offset = -1; x_offset < 2; x_offset++)
+	bool m_stop = false;
+	while (!m_stop)
 	{
-		for (char y_offset = -1; y_offset < 2; y_offset++)
+		this->simCalcUpdateLock.lock();
+		float m_targetSpeed = this->targetSimulationSpeed;
+		long m_int = (long)(1000.0 / (double)m_targetSpeed);
+		auto m_nowTime = std::chrono::steady_clock::now();
+		bool m_pauzed = this->pauzeSimulation;
+		this->simCalcUpdateLock.unlock();
+
+		if (m_pauzed)
 		{
-			if (!(y_offset == 0 && x_offset == 0))
+			m_int = 1000; // just force it to a interval of 1s
+		}
+		else 
+		{
+			clock_t m_starTime = clock();
+			this->UpdateSimulationWithSingleGeneration();
+			clock_t m_endTime = clock();
+			float m_differenceInMs = (m_endTime - m_starTime) / (CLOCKS_PER_SEC / 1000.0f);
+			this->lastUpdateDuration = m_differenceInMs;
+		}
+		
+		auto m_nextWake = m_nowTime + std::chrono::milliseconds(m_int);
+		bool m_nextRun = false;
+		while (!m_nextRun)
+		{
+			std::unique_lock<std::mutex> m_lk(this->simCalcUpdateLock);
+			
+			// wait for either the simulation to be canceled or the speed to be changed
+			// returns false if timeout has expired and pred() is still false. otherwise it will return true
+			bool m_waitResult = this->simCalcUpdate.wait_until(m_lk, m_nextWake, [this, m_targetSpeed] {
+				return this->cancelSimulation || this->targetSimulationSpeed != m_targetSpeed;
+			});
+			if (m_waitResult)
 			{
-				next = make_pair(a_x + x_offset, a_y + y_offset);
-				auto found = this->cells.find(next);
-				if (found != this->cells.end() && this->cells[next]->state == Conductor)
+				if (this->cancelSimulation)
 				{
-					this->cells[next]->neighborCount++;
+					m_stop = true;
+					m_nextRun = true;
+				}
+				else
+				{
+					m_int = (long)(1000.0 * this->targetSimulationSpeed);
+					auto m_newNextWake = m_nowTime + std::chrono::milliseconds(m_int);
+					auto m_now = std::chrono::steady_clock::now() - std::chrono::milliseconds(250);
+					if (m_newNextWake < m_now)
+					{
+						m_nextRun = true;
+					}
+					else
+					{
+						m_nextWake = m_newNextWake;
+					}
 				}
 			}
+			else
+			{
+				m_nextRun = true;
+			}
+			m_lk.unlock();
 		}
 	}
 }
 
-Cell* World::GetCellAt(long a_cellX, long a_cellY)
+Cell* World::GetCopyOfCellAt(long a_cellX, long a_cellY)
 {
+	std::lock_guard<std::shared_mutex> m_lk(this->cellsEditLock);
 	// Retrieves the pointer of a cell at a specific grid coordinate
-	return nullptr;
+	auto m_found = this->cells.find(std::make_pair(a_cellX, a_cellY));
+	if (m_found == this->cells.end())
+	{
+		return nullptr;
+	}
+	else
+	{
+		return new Cell(m_found->second->x, m_found->second->y, m_found->second->state);
+	}
+}
+
+bool World::InsertCellAt(long a_cellX, long a_cellY, CellState a_state)
+{
+	std::lock_guard<std::shared_mutex> m_lk(this->cellsEditLock);
+	if (this->cells.find(std::make_pair(a_cellX, a_cellY)) == this->cells.end())
+		return false;
+	this->cells.insert(std::make_pair(std::make_pair(a_cellX, a_cellY), new Cell(a_cellX, a_cellY, a_state)));
+	return true;
+}
+
+bool World::UpdateCellState(long a_cellX, long a_cellY, std::function<bool (Cell*)> a_updater)
+{
+	std::lock_guard<std::shared_mutex> m_lk(this->cellsEditLock);
+	auto m_found = this->cells.find(std::make_pair(a_cellX, a_cellY));
+	if (m_found == this->cells.end())
+	{
+		return false;
+	}
+	else
+	{
+		return a_updater(m_found->second);
+	}
 }
 
 void World::LoadBlockAt(PremadeBlock a_premadeBlock, long a_cellX, long a_cellY)
