@@ -125,9 +125,10 @@ int main()
 	}
 
 	world.StartSimulation();
+
 	while (true)
 	{
-		world.UpdateSimulationWithSingleGeneration();
+		//world.UpdateSimulationWithSingleGeneration();
 		printCells(world);
 		std::cout << std::endl << std::endl << std::endl;
 		std::this_thread::sleep_for(std::chrono::milliseconds(500));
