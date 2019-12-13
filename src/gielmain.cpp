@@ -5,7 +5,7 @@
 
 #include "world.h"
 #include "cell.h"
-#define SHOW_TYPE 3
+#define SHOW_TYPE 1
 
 World world(true);
 
@@ -124,6 +124,7 @@ int main()
 		world.cells.insert(std::make_pair(std::make_pair(m_cell->x, m_cell->y), m_cell));
 	}
 
+	world.StartSimulation();
 	while (true)
 	{
 		world.UpdateSimulationWithSingleGeneration();
@@ -288,8 +289,8 @@ void cleanUp()
 
 void printCells(World const& world)
 {
-	const int width = 10;
-	const int height = 10;
+	const int width = 25;
+	const int height = 20;
 	char m_stat[width][height];
 	for (int x = 0; x < width; x++)
 	{

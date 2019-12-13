@@ -30,20 +30,32 @@ World::World(bool a_multithreaded)
 	this->lastPartGeneration = 0;
 	this->lastUpdateDuration = 0;
 	this->targetSimulationSpeed = 1.0f;
-	if (!a_multithreaded)
-		return;
-	// returns 0 when not able to detect, otherwise, the number of (logical) processors
+
+	// Returns 0 when not able to detect, otherwise, the number of (logical) processors
 	this->totalThreads = std::thread::hardware_concurrency();
+	// Failsafe if not working properly
 	if (this->totalThreads == 0)
 		this->totalThreads = 1;
+
+	// If we only get 2 threads or less, use 1 thread for the simulator.
+	// Otherwise 1 for rendering, 1 for system and the others for the simulator.
+	if (this->totalThreads < 3)
+		this->totalThreads = 1;
+	else
+		this->totalThreads -= 2;
+	
+	// Calculate the number of thread that are extra (those will be created in the for loop below).
 	this->totalThreads--;
 	for (unsigned int m_threadId = 0; m_threadId < this->totalThreads; m_threadId++)
 	{
 		this->simUpdaters.emplace_back(std::thread(&World::ProcessPartContinuesly, this, m_threadId, this->totalThreads));
 		this->threadComboData.emplace(make_pair(m_threadId, new ThreadCombo()));
 	}
+	// Set the total thread count to the number that we will actually be using.
 	this->totalThreads++;
 	this->lastPartProcessor = std::thread(&World::ProcessLastPart, this);
+
+	// Start the timer
 	this->timerThread = std::thread(&World::TimerThread, this);
 }
 
@@ -64,17 +76,19 @@ void World::SaveAsTemplate(std::string a_worldName)
 
 void World::StartSimulation()
 {
-	// Starts the simulation
-	std::lock_guard<std::mutex> m_lk(this->simCalcUpdateLock);
-	this->pauzeSimulation = false;
+	{
+		std::lock_guard<std::mutex> m_lk(this->simCalcUpdateLock);
+		this->pauzeSimulation = false;
+	}
 	this->lastPartGenerationCv.notify_all();
 }
 
 void World::PauzeSimulation()
 {
-	// Pauses the simulation
-	std::lock_guard<std::mutex> m_lk(this->simCalcUpdateLock);
-	this->pauzeSimulation = true;
+	{
+		std::lock_guard<std::mutex> m_lk(this->simCalcUpdateLock);
+		this->pauzeSimulation = true;
+	}
 	this->lastPartGenerationCv.notify_all();
 }
 
@@ -85,16 +99,17 @@ void World::ResetSimulation()
 
 void World::UpdateSimulationWithSingleGeneration()
 {
-	// 
 	{
 		std::lock_guard<std::mutex> m_lk(this->currentGenerationLock);
 		this->currentGeneration++;
 	}
 	this->nextUpdateCv.notify_all();
 
+
 	auto m_begining = this->threadComboData.begin();
 	auto m_ending = this->threadComboData.end();
 	
+	// Wait for the processing threads to catch up to the current generation
 	while (m_begining != m_ending)
 	{
 		ThreadCombo* m_threadData = m_begining->second;
@@ -109,6 +124,8 @@ void World::UpdateSimulationWithSingleGeneration()
 		std::advance(m_begining, 1);
 	}
 	
+	// Check that the last part thread also is finished
+	// Only go into wait if the thread hasn't already caught up
 	bool m_wait = false;
 	{
 		std::lock_guard<std::mutex> m_locker(this->lastPartLock);
@@ -126,6 +143,7 @@ void World::UpdateSimulationWithSingleGeneration()
 	}
 
 	//TODO multi thread this too?
+	// Process the calculated results
 	for (auto m_cellPair : this->cells)
 	{
 		if ((m_cellPair.second->atomic_neighborCount.load() == 1 ||
@@ -164,14 +182,19 @@ void World::ProcessPartContinuesly(unsigned int a_threadId, unsigned int a_threa
 		m_lk.unlock();
 		if (!this->cancelSimulation)
 		{
+			// Lock editing to the map
 			this->cellsEditLock.lock_shared();
+
 			long m_cellCount = this->cells.size();
 			long m_perThread = m_cellCount / a_threadCount;
 			long m_nextPosition = m_perThread * a_threadId;
+			// Get offset relative to the beginning
 			long m_difference = std::distance(this->cells.begin(), m_iterator);
+			// Calculate what number to move (negative or positive) to get to the m_nextPosition value
 			long m_toMove = m_nextPosition - m_difference;
 			std::advance(m_iterator, m_toMove);
 
+			// Update the ending of the end processor
 			if (m_nextPosition + m_perThread != m_lastEndPosition)
 			{
 				m_sectionEnd = this->cells.begin();
@@ -194,8 +217,10 @@ void World::ProcessPartContinuesly(unsigned int a_threadId, unsigned int a_threa
 				}
 				std::advance(m_iterator, 1);
 			}
+			// Done with editing the map, unlock it again
 			this->cellsEditLock.unlock_shared();
 
+			// Notify main
 			auto m_threadCombo = this->threadComboData.find(a_threadId);
 			ThreadCombo* m_threadData = m_threadCombo->second;
 			m_threadData->lock.lock();
@@ -230,14 +255,18 @@ void World::ProcessLastPart()
 		m_lk.unlock();
 		if (!this->cancelSimulation)
 		{
+			// Lock editing to the map
 			this->cellsEditLock.lock_shared();
 			long m_cellCount = this->cells.size();
 			long m_perThread = m_cellCount / this->totalThreads;
-			long m_nextPosition = m_perThread * this->totalThreads;
+			long m_nextPosition = m_perThread * (this->totalThreads - 1);
+			// Get offset relative to the beginning
 			long m_difference = std::distance(this->cells.begin(), m_iterator);
+			// Calculate what number to move (negative or positive) to get to the m_nextPosition value
 			long m_toMove = m_nextPosition - m_difference;
 			std::advance(m_iterator, m_toMove);
 
+			// Update the ending of the end processor
 			if (m_cellCount != m_lastCellCount)
 			{
 				m_sectionEnd = this->cells.end();
@@ -260,7 +289,10 @@ void World::ProcessLastPart()
 				std::advance(m_iterator, 1);
 			}
 
+			// Done with map, unlock it
 			this->cellsEditLock.unlock_shared();
+
+			// Notify main
 			this->lastPartLock.lock();
 			this->lastPartGeneration++;
 			this->lastPartLock.unlock();
@@ -286,6 +318,8 @@ void World::IncrementNeighbors(long a_x, long a_y)
 			{
 				m_toFindPair = std::make_pair(a_x + m_xOffset, a_y + m_yOffset);
 				auto m_found = this->cells.find(m_toFindPair);
+
+				// Only if we found the cell, and it has the state of Conductor. increment the neighbor count
 				if (m_found != m_end && m_found->second->state == Conductor)
 				{
 					m_found->second->atomic_neighborCount.fetch_add(1);
@@ -297,9 +331,10 @@ void World::IncrementNeighbors(long a_x, long a_y)
 
 void World::SetTargetSpeed(float a_targetSpeed)
 {
-	this->simCalcUpdateLock.lock();
-	this->targetSimulationSpeed = a_targetSpeed;
-	this->simCalcUpdateLock.unlock();
+	{
+		std::lock_guard<std::mutex> m_lk(this->simCalcUpdateLock);
+		this->targetSimulationSpeed = a_targetSpeed;
+	}
 	this->simCalcUpdate.notify_all();
 }
 
@@ -308,6 +343,7 @@ void World::TimerThread()
 	bool m_stop = false;
 	while (!m_stop)
 	{
+		// Calculate the new time to wait for the next update
 		this->simCalcUpdateLock.lock();
 		float m_targetSpeed = this->targetSimulationSpeed;
 		long m_int = (long)(1000.0 / (double)m_targetSpeed);
@@ -315,6 +351,7 @@ void World::TimerThread()
 		bool m_pauzed = this->pauzeSimulation;
 		this->simCalcUpdateLock.unlock();
 
+		// Check if we should update the simulation (based on the paused state)
 		if (m_pauzed)
 		{
 			m_int = 1000; // just force it to a interval of 1s
@@ -327,7 +364,11 @@ void World::TimerThread()
 			float m_differenceInMs = (m_endTime - m_starTime) / (CLOCKS_PER_SEC / 1000.0f);
 			this->lastUpdateDuration = m_differenceInMs;
 		}
-		
+
+		// Keep looping until we are suppose to wake up. 
+		// 1) That is either a the wait time has passed. 
+		// 2) A new target speed has been set and we should start updating at the new speed.
+		// 3) Or we are to cancel the simulation
 		auto m_nextWake = m_nowTime + std::chrono::milliseconds(m_int);
 		bool m_nextRun = false;
 		while (!m_nextRun)
@@ -348,9 +389,10 @@ void World::TimerThread()
 				}
 				else
 				{
+					// Calculate the new time to wait, and set to wait if we need to, otherwise start the next update frame
 					m_int = (long)(1000.0 * this->targetSimulationSpeed);
 					auto m_newNextWake = m_nowTime + std::chrono::milliseconds(m_int);
-					auto m_now = std::chrono::steady_clock::now() - std::chrono::milliseconds(250);
+					auto m_now = std::chrono::steady_clock::now() - std::chrono::milliseconds(200);
 					if (m_newNextWake < m_now)
 					{
 						m_nextRun = true;
