@@ -13,6 +13,8 @@
 float cellHeight = 0.1f;
 float cellWidth = 0.1f;
 
+bool leftMouseIsDown = false;
+
 glm::vec3 cellVertices[] = {
 	// Triangle 1
 	glm::vec3(0.0f, 0.0f, 0.0f), // Index 0, Top left
@@ -259,8 +261,10 @@ void SimulatorPage::HandleInput(GLFWwindow* a_window)
 void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_posY)
 {
 	// Calculate in which cell the mouse pointer is located
-	int m_cellX = ((a_posX) / this->cellSizeDivisor);
-	int m_cellY = ((a_posY) / this->cellSizeDivisor);
+	double m_extraY = (a_posY / this->cellSizeDivisor);
+
+	int m_cellX = a_posX / this->cellSizeDivisor;
+	int m_cellY = (a_posY - m_extraY) / this->cellSizeDivisor;
 
 	// Update the current hovered grid cols
 	if (this->curColHoveredX != m_cellX)
@@ -268,37 +272,60 @@ void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_pos
 
 	if (this->curColHoveredY != m_cellY)
 		this->curColHoveredY = m_cellY + this->cellScrollOffsetY;
+
+	static int m_lastX = 0;
+	static int m_lastY = 0;
+
+	bool m_equal = m_lastX == this->curColHoveredX && m_lastY == this->curColHoveredY;
+
+	if (leftMouseIsDown && !m_equal)
+	{
+		this->DrawGridCell(true);
+		m_lastX = this->curColHoveredX;
+		m_lastY = this->curColHoveredY;
+	}
 }
 
 void SimulatorPage::MouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods)
 {
-	// Left mouse click
+	// Left mouse click (button down)
 	if (a_button == 0 && a_action == 1)
 	{
-		auto m_foundElement = debugCellLocations.find(std::make_pair(this->curColHoveredX, this->curColHoveredY));
+		leftMouseIsDown = true;
+		DrawGridCell(false);
+	}
+	// Left mouse click (button up)
+	else if (a_button == 0 && a_action == 0)
+	{
+		leftMouseIsDown = false;
+	}
+}
 
-		if (m_foundElement == debugCellLocations.end())
+void SimulatorPage::DrawGridCell(bool a_drawSameColor)
+{
+	auto m_foundElement = debugCellLocations.find(std::make_pair(this->curColHoveredX, this->curColHoveredY));
+
+	if (m_foundElement == debugCellLocations.end())
+	{
+		debugCellLocations.insert(std::make_pair(std::make_pair(this->curColHoveredX, this->curColHoveredY), CellState::Conductor));
+	}
+	else
+	{
+		// Cycle through the cellstates
+		if (m_foundElement->second == CellState::Background)
 		{
-			debugCellLocations.insert(std::make_pair(std::make_pair(this->curColHoveredX, this->curColHoveredY), CellState::Conductor));
+			debugCellLocations.erase(m_foundElement);
 		}
 		else
 		{
-			// Cycle through the cellstates
-			if(m_foundElement->second == CellState::Background)
-			{
-				debugCellLocations.erase(m_foundElement);
-			}
-			else
-			{
-				// Get the cellstate and increment it
-				int m_state = m_foundElement->second;
-				m_state++;
-					
-				std::cout << (CellState)m_state << std::endl;
+			// Get the cellstate and increment it
+			int m_state = m_foundElement->second;
+			m_state++;
 
-				// Modify the state of the cell pointer
-				m_foundElement->second = (CellState)m_state;
-			}
+			std::cout << (CellState)m_state << std::endl;
+
+			// Modify the state of the cell pointer
+			m_foundElement->second = (CellState)m_state;
 		}
 	}
 }
@@ -327,11 +354,11 @@ void SimulatorPage::RenderCells()
 	glUniform1f(cellWidthUniform, 1.0f / (this->screenWidth / this->cellSizeDivisor));
 	glUniform1f(cellHeightUniform, 1.0f / (this->screenHeight / this->cellSizeDivisor));
 
-	// Loop through the 	
+	// Loop through the cells
 	for (auto m_pair : debugCellLocations)
 	{
 		int m_viewportWidthMax = (int)(this->screenWidth / this->cellSizeDivisor) + this->cellScrollOffsetX;
-		int m_viewportHeightMax = (int)(this->screenHeight/ this->cellSizeDivisor) + this->cellScrollOffsetY;
+		int m_viewportHeightMax = (int)(this->screenHeight / this->cellSizeDivisor) + this->cellScrollOffsetY;
 
 		if (m_pair.first.first >= this->cellScrollOffsetX && m_pair.first.first < m_viewportWidthMax &&
 			m_pair.first.second >= this->cellScrollOffsetY && m_pair.first.second < m_viewportHeightMax

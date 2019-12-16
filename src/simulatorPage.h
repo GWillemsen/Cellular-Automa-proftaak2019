@@ -69,6 +69,7 @@ private:
 	void RenderGrid();
 	void RenderCells();
 	void UpdateCellSize();
+	void DrawGridCell(bool a_drawSameColor);
 
 };
 
