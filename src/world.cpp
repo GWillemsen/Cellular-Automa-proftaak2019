@@ -77,7 +77,7 @@ World::World(const World& that) : author(that.author), filePath(that.filePath), 
 		this->cells.insert(
 			std::make_pair(
 				std::make_pair(m_cell.first.first, m_cell.first.second),
-				new Cell(m_cell.second->x, m_cell.second->y, m_cell.second->state)
+				new Cell(m_cell.second->x, m_cell.second->y, m_cell.second->cellState)
 			)
 		);
 	}
@@ -103,7 +103,7 @@ World& World::operator=(const World& that)
 		this->cells.insert(
 			std::make_pair(
 				std::make_pair(m_cell.first.first, m_cell.first.second),
-				new Cell(m_cell.second->x, m_cell.second->y, m_cell.second->state)
+				new Cell(m_cell.second->x, m_cell.second->y, m_cell.second->cellState)
 			)
 		);
 	}
@@ -236,12 +236,12 @@ void World::UpdateSimulationWithSingleGeneration()
 	{
 		if ((m_cellPair.second->atomic_neighborCount.load() == 1 ||
 			 m_cellPair.second->atomic_neighborCount.load() == 2) &&
-			m_cellPair.second->state != Background &&
-			m_cellPair.second->state != Tail)
+			m_cellPair.second->cellState != Background &&
+			m_cellPair.second->cellState != Tail)
 		{
 			m_cellPair.second->decayState = Head;
 		}
-		m_cellPair.second->state = m_cellPair.second->decayState;
+		m_cellPair.second->cellState = m_cellPair.second->decayState;
 		m_cellPair.second->atomic_neighborCount.store(0);
 	}
 }
@@ -294,11 +294,11 @@ void World::ProcessPartContinuesly(unsigned int a_threadId, unsigned int a_threa
 			{
 				// An iterator item can be accessed like an pointer, you have to dereference it first.
 				Cell* m_cell = (*m_iterator).second;
-				if (m_cell->state == Tail)
+				if (m_cell->cellState == Tail)
 				{
 					m_cell->decayState = Conductor;
 				}
-				else if (m_cell->state == Head)
+				else if (m_cell->cellState == Head)
 				{
 					this->IncrementNeighbors(m_cell->x, m_cell->y);
 					m_cell->decayState = Tail;
@@ -365,11 +365,11 @@ void World::ProcessLastPart()
 			{
 				// An iterator item can be accessed like an pointer, you have to dereference it first.
 				Cell* m_cell = (*m_iterator).second;
-				if (m_cell->state == Tail)
+				if (m_cell->cellState == Tail)
 				{
 					m_cell->decayState = Conductor;
 				}
-				else if (m_cell->state == Head)
+				else if (m_cell->cellState == Head)
 				{
 					this->IncrementNeighbors(m_cell->x, m_cell->y);
 					m_cell->decayState = Tail;
@@ -408,7 +408,7 @@ void World::IncrementNeighbors(long a_x, long a_y)
 				auto m_found = this->cells.find(m_toFindPair);
 
 				// Only if we found the cell, and it has the state of Conductor. increment the neighbor count
-				if (m_found != m_end && m_found->second->state == Conductor)
+				if (m_found != m_end && m_found->second->cellState == Conductor)
 				{
 					m_found->second->atomic_neighborCount.fetch_add(1);
 				}
@@ -511,7 +511,7 @@ Cell* World::GetCopyOfCellAt(long a_cellX, long a_cellY)
 	}
 	else
 	{
-		return new Cell(m_found->second->x, m_found->second->y, m_found->second->state);
+		return new Cell(m_found->second->x, m_found->second->y, m_found->second->cellState);
 	}
 }
 

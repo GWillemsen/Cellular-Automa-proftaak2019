@@ -18,7 +18,7 @@ class Cell
 public:
 	GLint64 x;
 	GLint64 y;
-	CellState state;
+	CellState cellState;
 	CellState decayState;
 	unsigned char neighborCount;
 	std::atomic<unsigned char> atomic_neighborCount;
@@ -28,12 +28,12 @@ public:
 	Cell(GLint64 x, GLint64 y, CellState state) : Cell() {
 		this->x = x;
 		this->y = y;
-		this->state = state;
+		this->cellState = state;
 		this->decayState = state;
 	}
 	Cell() {
 		this->decayState = Background;
-		this->state = Background;
+		this->cellState = Background;
 		this->x = 0;
 		this->y = 0;
 		this->atomic_neighborCount.store(0);
