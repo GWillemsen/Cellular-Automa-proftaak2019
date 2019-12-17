@@ -15,6 +15,8 @@ float cellWidth = 0.1f;
 
 bool leftMouseIsDown = false;
 
+int lastCellState = -1;
+
 glm::vec3 cellVertices[] = {
 	// Triangle 1
 	glm::vec3(0.0f, 0.0f, 0.0f), // Index 0, Top left
@@ -298,6 +300,9 @@ void SimulatorPage::MouseClick(GLFWwindow* a_window, int a_button, int a_action,
 	else if (a_button == 0 && a_action == 0)
 	{
 		leftMouseIsDown = false;
+
+		// Resets the last cell state
+		lastCellState = -1;
 	}
 }
 
@@ -307,25 +312,37 @@ void SimulatorPage::DrawGridCell(bool a_drawSameColor)
 
 	if (m_foundElement == debugCellLocations.end())
 	{
-		debugCellLocations.insert(std::make_pair(std::make_pair(this->curColHoveredX, this->curColHoveredY), CellState::Conductor));
+		CellState m_cellState = CellState::Conductor;
+
+		// Check if we need to draw the default cellState
+		if (lastCellState > -1)
+			m_cellState = (CellState)lastCellState;
+
+		// Insert the new cell
+		debugCellLocations.insert(std::make_pair(std::make_pair(this->curColHoveredX, this->curColHoveredY), m_cellState));
 	}
 	else
 	{
-		// Cycle through the cellstates
-		if (m_foundElement->second == CellState::Background)
+		if (a_drawSameColor && lastCellState == -1)
+			lastCellState = m_foundElement->second;
+
+		// Get the cellstate and increment it
+		int m_state = m_foundElement->second;
+		m_state += 1;
+
+		// Remove the cell when it gets the background state assigned
+		if (!a_drawSameColor && (m_foundElement->second == CellState::Background || m_state > 2))
 		{
 			debugCellLocations.erase(m_foundElement);
 		}
-		else
+		else if(!a_drawSameColor)
 		{
-			// Get the cellstate and increment it
-			int m_state = m_foundElement->second;
-			m_state++;
-
-			std::cout << (CellState)m_state << std::endl;
-
 			// Modify the state of the cell pointer
 			m_foundElement->second = (CellState)m_state;
+		}
+		else
+		{
+			m_foundElement->second = (CellState)lastCellState;
 		}
 	}
 }
