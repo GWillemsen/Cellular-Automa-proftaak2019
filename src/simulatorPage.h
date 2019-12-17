@@ -18,6 +18,8 @@ public:
 	SimulatorPage(GLFWwindow* a_window, Shader a_shader);
 
 private:
+	const char* glsl_version = "#version 330 core";
+
 	World worldCells[1];
 
 	GLuint colorUniform;
@@ -48,6 +50,9 @@ private:
 	GLuint gridRowVBO;
 	GLuint gridColumnVAO;
 	GLuint gridColumnVBO;
+
+	// ImGUI
+	ImGuiIO imguiIO;
 
 public:
 	Page *Run();

@@ -1,13 +1,23 @@
+// Standard system libraries
 #include <thread>
 #include <iostream>
 #include <map>
+
+// Dear ImGui
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
+
+// GLAD, GLM and GLFW
 #include <glad\glad.h>
 #include <glm\glm.hpp>
 #include <GLFW\glfw3.h>
+#include <glm\gtx\transform.hpp>
+
+// Class header files
 #include "simulatorPage.h"
 #include "shader.h"
 #include "config.h"
-#include <glm\gtx\transform.hpp>
 
 // Cell variables
 float cellHeight = 0.1f;
@@ -19,6 +29,8 @@ float scrollSensitivity = 1.2f;
 float scrollDelayBuffer = 0.0f;
 
 // Input variables
+bool mouseIsInGUI = false;
+
 bool leftMouseIsDown = false;
 bool rightMouseIsDown = false;
 bool middleMouseIsDown = false;
@@ -112,6 +124,21 @@ void SimulatorPage::InitOpenGL()
 void SimulatorPage::InitImGui()
 {
 	// Initializes Dear ImGui
+	
+	// Setup ImGUI Context
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+
+	this->imguiIO = ImGui::GetIO(); (void)this->imguiIO;
+	
+	// Enable keyboard input
+	this->imguiIO.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+
+	ImGui::StyleColorsDark();
+
+	// Setup renderer bindings
+	ImGui_ImplGlfw_InitForOpenGL(this->window, true);
+	ImGui_ImplOpenGL3_Init(this->glsl_version);
 }
 
 void SimulatorPage::InitSimulator()
@@ -123,10 +150,6 @@ void SimulatorPage::RenderOpenGL()
 {
 	// Renders graphics through OpenGL
 
-	// Clear the screen
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT);
-
 	// Render all of the cells
 	this->RenderCells();
 
@@ -137,6 +160,20 @@ void SimulatorPage::RenderOpenGL()
 void SimulatorPage::RenderImGui()
 {
 	// Renders the GUI with Dear ImGUI
+
+	ImGui_ImplOpenGL3_NewFrame();
+	ImGui_ImplGlfw_NewFrame();
+	ImGui::NewFrame();
+
+	ImGui::Begin("Test");
+	ImGui::Text("This is some useful text.");
+	ImGui::End();
+
+	ImGui::Render();
+
+	ImGui::EndFrame();
+
+	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
 void SimulatorPage::UpdateSimulation()
@@ -157,6 +194,7 @@ void SimulatorPage::DisposeImGui()
 Page* SimulatorPage::Run()
 {
 	this->InitOpenGL();
+	this->InitImGui();
 
 	bool m_exit = false;
 	Page* m_nextPage = nullptr;
@@ -165,11 +203,21 @@ Page* SimulatorPage::Run()
 	{
 		glfwPollEvents();
 
+		// Clear the screen
+		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT);
+
 		this->HandleInput(this->window);
 		this->RenderOpenGL();
+		this->RenderImGui();
 
 		glfwSwapBuffers(this->window);
 	}
+
+	ImGui_ImplOpenGL3_Shutdown();
+	ImGui_ImplGlfw_Shutdown();
+	ImGui::DestroyContext();
+
 	return m_nextPage;
 }
 
