@@ -8,7 +8,7 @@
 #ifndef __WORLD__
 #define __WORLD__
 
-class World : public Config
+class World
 {
 private:
 	std::string filePath;
