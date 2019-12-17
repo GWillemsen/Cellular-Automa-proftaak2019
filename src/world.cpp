@@ -19,10 +19,8 @@ void World::EmptyWorld()
 
 // Public methods
 
-World::World(bool a_multithreaded)
+World::World()
 {
-	using std::pair;
-	using std::make_pair;
 	this->totalThreads = 0;
 	this->cancelSimulation = false;
 	this->pauzeSimulation = true;
@@ -30,7 +28,14 @@ World::World(bool a_multithreaded)
 	this->lastPartGeneration = 0;
 	this->lastUpdateDuration = 0;
 	this->targetSimulationSpeed = 1.0f;
+	
+	this->InitializeThreads();
+}
 
+void World::InitializeThreads()
+{
+	using std::pair;
+	using std::make_pair;
 	// Returns 0 when not able to detect, otherwise, the number of (logical) processors
 	this->totalThreads = std::thread::hardware_concurrency();
 	// Failsafe if not working properly
@@ -57,6 +62,89 @@ World::World(bool a_multithreaded)
 
 	// Start the timer
 	this->timerThread = std::thread(&World::TimerThread, this);
+}
+
+// 1. copy constructor
+World::World(const World& that) : author(that.author), filePath(that.filePath), description(that.description) 
+{
+	this->cancelSimulation = that.cancelSimulation;
+	this->lastUpdateDuration = 0;
+
+	this->pauzeSimulation = that.pauzeSimulation;
+	InitializeThreads();
+	for (auto m_cell : that.cells)
+	{
+		this->cells.insert(
+			std::make_pair(
+				std::make_pair(m_cell.first.first, m_cell.first.second),
+				new Cell(m_cell.second->x, m_cell.second->y, m_cell.second->state)
+			)
+		);
+	}
+	this->currentGeneration = that.currentGeneration;
+	this->targetSimulationSpeed = that.targetSimulationSpeed;
+	this->lastPartGeneration = that.lastPartGeneration;
+}
+
+// 2. copy assignment operator
+World& World::operator=(const World& that) 
+{
+	this->cancelSimulation = that.cancelSimulation;
+	this->lastUpdateDuration = 0;
+	
+	this->author = that.author;
+	this->filePath = that.filePath;
+	this->description = that.description;
+
+	this->pauzeSimulation = that.pauzeSimulation;
+	InitializeThreads();
+	for (auto m_cell : that.cells)
+	{
+		this->cells.insert(
+			std::make_pair(
+				std::make_pair(m_cell.first.first, m_cell.first.second),
+				new Cell(m_cell.second->x, m_cell.second->y, m_cell.second->state)
+			)
+		);
+	}
+	this->currentGeneration = that.currentGeneration;
+	this->targetSimulationSpeed = that.targetSimulationSpeed;
+	this->lastPartGeneration = that.lastPartGeneration;
+	return *this;
+}
+
+// 3. destructor
+World::~World()
+{
+	this->PauzeSimulation();
+	// Start canceling the simulator updater's
+	{
+		std::lock_guard<std::mutex> m_lk(this->simCalcUpdateLock);
+		this->cancelSimulation = true;
+	}
+	this->simCalcUpdate.notify_all();
+	this->nextUpdateCv.notify_all();
+
+	// Wait on all threads to return
+	auto m_begining = this->simUpdaters.begin();
+	auto m_end = this->simUpdaters.end();
+	while (m_begining != m_end)
+	{
+		if (m_begining->joinable())
+			m_begining->join();
+		
+		std::advance(m_begining, 1);
+	}
+	this->simUpdaters.clear();
+	this->timerThread.join();
+	this->lastPartProcessor.join();
+
+	// Remove all cell data
+	for (auto m_cell : this->cells)
+	{
+		delete m_cell.second;
+	}
+	this->cells.clear();
 }
 
 void World::Save(std::string a_worldName)

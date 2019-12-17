@@ -70,11 +70,16 @@ private:
 	void ProcessPartContinuesly(unsigned int  a_threadId, unsigned int a_maxThreads);
 	void ProcessLastPart();
 	void TimerThread();
+	void World::InitializeThreads();
 public:
-	World() : World(false) {
-		
-	}
-	World(bool a_mulithreaded);
+	World();
+	// Copy constructor
+	World(const World& a_that);
+	// Copy assignment operator
+	World& operator=(const World& a_that);
+	
+	~World();
+
 	void Save(std::string a_worldName);
 	void Open(std::string a_filePath);
 	void SaveAsTemplate(std::string a_worldName);
