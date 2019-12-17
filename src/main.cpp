@@ -33,6 +33,10 @@ unsigned int CreateVBO(float* a_indices, int a_verticeCount);
 unsigned int CreateVAO();
 unsigned int CreateEBO(unsigned int* indices, int a_indiceCount);
 
+void mouseHover(GLFWwindow* a_window, double a_posX, double a_posY);
+void mouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods);
+
+
 Page* m_nextPage = nullptr;
 int screenWidth = 1920;
 int screenHeight = 1080;
@@ -62,7 +66,12 @@ int main()
 	// Binds the 'framebuffer_size_callback' method to the window resize event.
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
+	// Set callbacks
+	glfwSetMouseButtonCallback(window, mouseClick); // Catches the mouse click event
+	glfwSetCursorPosCallback(window, mouseHover); // Catches the mouse move event
+
 	m_nextPage = new SimulatorPage(window);
+
 	while (m_nextPage)
 	{
 		Page* m_newNextPage = m_nextPage->Run();
@@ -102,9 +111,10 @@ GLFWwindow* CreateWindow()
 	const GLFWvidmode* mode = glfwGetVideoMode(monitor);
 
 	glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
-	glfwWindowHint(GLFW_MAXIMIZED, GLFW_TRUE);
+	//glfwWindowHint(GLFW_MAXIMIZED, GLFW_FALSE);
 	glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
 
+	//GLFWwindow* window = glfwCreateWindow(mode->width, mode->height, "LearnOpenGL", monitor, NULL);
 	GLFWwindow* window = glfwCreateWindow(mode->width, mode->height, "LearnOpenGL", monitor, NULL);
 	// Make sure that the window is created.
 	if (window == NULL)
@@ -183,4 +193,17 @@ unsigned int CreateVAO()
 	glGenVertexArrays(1, &renderVao);
 	glBindVertexArray(renderVao);
 	return renderVao;
+}
+
+
+void mouseHover(GLFWwindow* a_window, double a_posX, double a_posY)
+{
+	if (m_nextPage != nullptr)
+		m_nextPage->MouseHover(a_window, a_posX, a_posY);
+}
+
+void mouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods)
+{
+	if (m_nextPage != nullptr)
+		m_nextPage->MouseClick(a_window, a_button, a_action, a_mods);
 }
