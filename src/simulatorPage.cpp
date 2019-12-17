@@ -12,11 +12,16 @@
 // Cell variables
 float cellHeight = 0.1f;
 float cellWidth = 0.1f;
+int lastCellState = -1;
 
+float scrollSpeed = 1.0f;
+float scrollSensitivity = 1.2f;
+float scrollDelayBuffer = 0.0f;
+
+// Input variables
 bool leftMouseIsDown = false;
 bool rightMouseIsDown = false;
-
-int lastCellState = -1;
+bool middleMouseIsDown = false;
 
 glm::vec3 cellVertices[] = {
 	// Triangle 1
@@ -92,6 +97,7 @@ void SimulatorPage::InitOpenGL()
 	debugCellLocations.insert(std::make_pair(std::make_pair(1, 1), CellState::Conductor));
 	debugCellLocations.insert(std::make_pair(std::make_pair(2, 2), CellState::Conductor));
 	debugCellLocations.insert(std::make_pair(std::make_pair(3, 3), CellState::Head));
+
 	// Out of bounds
 	debugCellLocations.insert(std::make_pair(std::make_pair(40, 1), CellState::Conductor));
 	debugCellLocations.insert(std::make_pair(std::make_pair(41, 2), CellState::Conductor));
@@ -276,18 +282,71 @@ void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_pos
 	if (this->curColHoveredY != m_cellY)
 		this->curColHoveredY = m_cellY + this->cellScrollOffsetY;
 
-	static int m_lastX = 0;
-	static int m_lastY = 0;
+	static int m_lastCellX = 0;
+	static int m_lastCellY = 0;
 
-	bool m_equal = m_lastX == this->curColHoveredX && m_lastY == this->curColHoveredY;
+	bool m_equal = m_lastCellX == this->curColHoveredX && m_lastCellY == this->curColHoveredY;
 
+	// Add cells or change cell state by dragging
 	if (leftMouseIsDown && !m_equal && !rightMouseIsDown)
 	{
+		m_lastCellX = this->curColHoveredX;
+		m_lastCellY = this->curColHoveredY;
 		this->DrawGridCell(true);
-		m_lastX = this->curColHoveredX;
-		m_lastY = this->curColHoveredY;
 	}
 
+	static int m_lastMouseX = 0;
+	static int m_lastMouseY = 0;
+
+	// Scrolling with the middle mouse button
+	if (middleMouseIsDown)
+	{
+		// Calculate the difference between the current and last mouse position
+		int m_scrollDifferenceX = a_posX - m_lastMouseX;
+		int m_scrollDifferenceY = a_posY - m_lastMouseY;
+
+		scrollDelayBuffer += 0.1f;
+
+		if (scrollDelayBuffer >= scrollSensitivity)
+		{
+			// Horizontal scrolling
+			if (m_scrollDifferenceX < 0)
+			{
+				// Scroll right
+				this->cellScrollOffsetX += scrollSpeed;
+				this->gridLineScrollOffsetX -= scrollSpeed;
+			}
+			else if (m_scrollDifferenceX > 0)
+			{
+				scrollDelayBuffer += 0.1f;
+
+				// Scroll left
+				this->cellScrollOffsetX -= scrollSpeed;
+				this->gridLineScrollOffsetX += scrollSpeed;
+			}
+
+			// Vertical scrolling
+			if (m_scrollDifferenceY < 0)
+			{
+				// Scroll right
+				this->cellScrollOffsetY += scrollSpeed;
+				this->gridLineScrollOffsetY -= scrollSpeed;
+			}
+			else if (m_scrollDifferenceY > 0)
+			{
+				// Scroll left
+				this->cellScrollOffsetY -= scrollSpeed;
+				this->gridLineScrollOffsetY += scrollSpeed;
+			}
+
+			scrollDelayBuffer = 0.0f;
+		}
+
+		m_lastMouseX = a_posX;
+		m_lastMouseY = a_posY;
+	}
+
+	// Remove cells by dragging
 	if (rightMouseIsDown && !leftMouseIsDown)
 	{
 		this->RemoveGridCell();
@@ -323,6 +382,22 @@ void SimulatorPage::MouseClick(GLFWwindow* a_window, int a_button, int a_action,
 	else if (a_button == 1 && a_action == 0)
 	{
 		rightMouseIsDown = false;
+		scrollDelayBuffer = 0.0f;
+
+		lastCellState = -1;
+	}
+
+	// Middle mouse click (scroll wheel button clicked down)
+	if (a_button == 2 && a_action == 1)
+	{
+		middleMouseIsDown = true;
+
+		lastCellState = -1;
+	}
+	// Middle mouse click (scroll wheel button clicked up)
+	else if (a_button == 2 && a_action == 0)
+	{
+		middleMouseIsDown = false;
 
 		lastCellState = -1;
 	}

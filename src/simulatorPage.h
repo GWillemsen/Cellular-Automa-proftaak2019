@@ -38,8 +38,11 @@ private:
 	int curColHoveredX = 0;
 	int curColHoveredY = 0;
 	
-	int cellScrollOffsetX = 0;
-	int cellScrollOffsetY = 0;
+	float cellScrollOffsetX = 0.0f;
+	float cellScrollOffsetY = 0.0f;
+
+	float gridLineScrollOffsetX = 0.0f;
+	float gridLineScrollOffsetY = 0.0f;
 
 	GLuint gridRowVAO;
 	GLuint gridRowVBO;
