@@ -14,6 +14,7 @@ float cellHeight = 0.1f;
 float cellWidth = 0.1f;
 
 bool leftMouseIsDown = false;
+bool rightMouseIsDown = false;
 
 int lastCellState = -1;
 
@@ -280,11 +281,16 @@ void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_pos
 
 	bool m_equal = m_lastX == this->curColHoveredX && m_lastY == this->curColHoveredY;
 
-	if (leftMouseIsDown && !m_equal)
+	if (leftMouseIsDown && !m_equal && !rightMouseIsDown)
 	{
 		this->DrawGridCell(true);
 		m_lastX = this->curColHoveredX;
 		m_lastY = this->curColHoveredY;
+	}
+
+	if (rightMouseIsDown && !leftMouseIsDown)
+	{
+		this->RemoveGridCell();
 	}
 }
 
@@ -294,7 +300,7 @@ void SimulatorPage::MouseClick(GLFWwindow* a_window, int a_button, int a_action,
 	if (a_button == 0 && a_action == 1)
 	{
 		leftMouseIsDown = true;
-		DrawGridCell(false);
+		this->DrawGridCell(false);
 	}
 	// Left mouse click (button up)
 	else if (a_button == 0 && a_action == 0)
@@ -302,6 +308,22 @@ void SimulatorPage::MouseClick(GLFWwindow* a_window, int a_button, int a_action,
 		leftMouseIsDown = false;
 
 		// Resets the last cell state
+		lastCellState = -1;
+	}
+
+	// Right mouse click (button down)
+	if (a_button == 1 && a_action == 1)
+	{
+		rightMouseIsDown = true;
+		this->RemoveGridCell();
+	
+		lastCellState = -1;
+	}
+	// Right mouse click (button up)
+	else if (a_button == 1 && a_action == 0)
+	{
+		rightMouseIsDown = false;
+
 		lastCellState = -1;
 	}
 }
@@ -346,6 +368,17 @@ void SimulatorPage::DrawGridCell(bool a_drawSameColor)
 		}
 	}
 }
+
+void SimulatorPage::RemoveGridCell()
+{
+	auto m_foundElement = debugCellLocations.find(std::make_pair(this->curColHoveredX, this->curColHoveredY));
+	
+	if (m_foundElement != debugCellLocations.end())
+	{
+		debugCellLocations.erase(m_foundElement);
+	}
+}
+
 
 // Cell rendering
 void SimulatorPage::RenderCells()
