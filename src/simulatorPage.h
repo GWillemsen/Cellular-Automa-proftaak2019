@@ -20,7 +20,7 @@ public:
 private:
 	const char* glsl_version = "#version 330 core";
 
-	World worldCells[1];
+	World worldCells;
 
 	GLuint colorUniform;
 	glm::mat4 projectionMatrix = glm::ortho(0.0f, 1.0f, 0.0f, 1.0f);

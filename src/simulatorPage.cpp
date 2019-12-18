@@ -55,9 +55,6 @@ unsigned int cellIndices[] = {
 	0, 3, 2
 };
 
-// Cell debug variables
-std::map<std::pair<GLint64, GLint64>, CellState> debugCellLocations;
-
 SimulatorPage::SimulatorPage(GLFWwindow* a_window) : Page(a_window, "SimulatorPage")
 {
 	this->shaders = Shader();
@@ -107,15 +104,14 @@ void SimulatorPage::InitOpenGL()
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
 	glEnableVertexAttribArray(0);
 
-	// Fill the cell locations
-	debugCellLocations.insert(std::make_pair(std::make_pair(1, 1), CellState::Conductor));
-	debugCellLocations.insert(std::make_pair(std::make_pair(2, 2), CellState::Conductor));
-	debugCellLocations.insert(std::make_pair(std::make_pair(3, 3), CellState::Head));
+	/*worldCells.InsertCellAt(1, 1, CellState::Conductor);
+	worldCells.InsertCellAt(2, 2, CellState::Conductor);
+	worldCells.InsertCellAt(3, 3, CellState::Head);
 
 	// Out of bounds
-	debugCellLocations.insert(std::make_pair(std::make_pair(40, 1), CellState::Conductor));
-	debugCellLocations.insert(std::make_pair(std::make_pair(41, 2), CellState::Conductor));
-	debugCellLocations.insert(std::make_pair(std::make_pair(42, 3), CellState::Conductor));
+	worldCells.InsertCellAt(40, 1, CellState::Conductor);
+	worldCells.InsertCellAt(41, 2, CellState::Conductor);
+	worldCells.InsertCellAt(42, 3, CellState::Conductor);*/
 
 	this->cellSizeDivisor = 48;
 
@@ -335,6 +331,22 @@ void SimulatorPage::HandleInput(GLFWwindow* a_window)
 	// If the escape key gets pressed, close the window
 	if (glfwGetKey(a_window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(this->window, true);
+	if (glfwGetKey(a_window, GLFW_KEY_S) == GLFW_PRESS)
+		this->worldCells.StartSimulation();
+	if (glfwGetKey(a_window, GLFW_KEY_P) == GLFW_PRESS)
+		this->worldCells.PauzeSimulation();
+	if (glfwGetKey(a_window, GLFW_KEY_1) == GLFW_PRESS)
+	{
+		float m_speed = this->worldCells.GetTargetSpeed();
+		std::cout << m_speed << std::endl;
+		this->worldCells.SetTargetSpeed(m_speed + 2.0f);
+	}
+	if (glfwGetKey(a_window, GLFW_KEY_0) == GLFW_PRESS)
+	{
+		float m_speed = this->worldCells.GetTargetSpeed();
+		std::cout << m_speed << std::endl;
+		this->worldCells.SetTargetSpeed(m_speed - 2.0f);
+	}
 }
 
 void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_posY)
@@ -475,42 +487,61 @@ void SimulatorPage::MouseClick(GLFWwindow* a_window, int a_button, int a_action,
 
 void SimulatorPage::DrawGridCell(bool a_drawSameColor)
 {
-	auto m_foundElement = debugCellLocations.find(std::make_pair(this->curColHoveredX, this->curColHoveredY));
+	auto m_foundElement = worldCells.cells.find(std::make_pair(this->curColHoveredX, this->curColHoveredY));
 
-	if (m_foundElement == debugCellLocations.end())
+	if (m_foundElement == worldCells.cells.end())
 	{
 		if (selectedBrushType == 4)
 			return;
 
-		CellState m_cellState = CellState::Conductor;
-
-		// Check if we need to draw the default cellState
-		if (lastCellState > -1 && selectedBrushType == 0)
-			m_cellState = (CellState)lastCellState;
-		else
-			m_cellState = (CellState)(selectedBrushType - 1);
+		CellState m_cellState = Conductor;
 
 		// Insert the new cell
-		debugCellLocations.insert(std::make_pair(std::make_pair(this->curColHoveredX, this->curColHoveredY), m_cellState));
+		worldCells.InsertCellAt(this->curColHoveredX, this->curColHoveredY, m_cellState);
 	}
 	else
 	{
+		if (selectedBrushType == 4)
+			return;
+
+		CellState m_cellState = Conductor;
+
+		// Insert the new cell
+		try
+		{
+			worldCells.UpdateCellState(this->curColHoveredX, this->curColHoveredY, [m_cellState](Cell* m_cell) {
+				if (m_cell->cellState == Head)
+				{
+					m_cell->cellState = Tail;
+				}
+				else
+				{
+					m_cell->cellState = Head;
+				}
+				return true;
+			});
+		}
+		catch (_exception Ex)
+		{
+
+		}
+		/*
 		if (a_drawSameColor && lastCellState == -1)
-			lastCellState = m_foundElement->second;
+			lastCellState = (int)m_foundElement->second->cellState;
 
 		// Get the cellstate and increment it
-		int m_state = m_foundElement->second;
+		int m_state = (int)m_foundElement->second->cellState;
 		m_state += 1;
 
 		// Remove the cell when it gets the background state assigned
-		if (!a_drawSameColor && (m_foundElement->second == CellState::Background || m_state > 2 || selectedBrushType == 4))
+		if (!a_drawSameColor && (m_foundElement->second->cellState == CellState::Background || m_state > 2 || selectedBrushType == 4))
 		{
-			debugCellLocations.erase(m_foundElement);
+			worldCells.cells.erase(m_foundElement);
 		}
 		else if(!a_drawSameColor && selectedBrushType == 0)
 		{
 			// Modify the state of the cell pointer
-			m_foundElement->second = (CellState)m_state;
+			m_foundElement->second->cellState = (CellState)m_state;
 		}
 		else if (selectedBrushType == 4)
 		{
@@ -518,23 +549,23 @@ void SimulatorPage::DrawGridCell(bool a_drawSameColor)
 		}
 		else if (selectedBrushType > 0 && selectedBrushType != 4)
 		{
-			m_foundElement->second = (CellState)(selectedBrushType - 1);
+			m_foundElement->second->cellState = (CellState)(selectedBrushType - 1);
 		}
-		else if(selectedBrushType == 0) n
+		else if(selectedBrushType == 0)
 		{
 			//if(selectedBrushType != 0 && selectedBrushType < 5)
-			m_foundElement->second = (CellState)lastCellState;
-		}
+			m_foundElement->second->cellState = (CellState)lastCellState;
+		}*/
 	}
 }
 
 void SimulatorPage::RemoveGridCell()
 {
-	auto m_foundElement = debugCellLocations.find(std::make_pair(this->curColHoveredX, this->curColHoveredY));
+	auto m_foundElement = worldCells.cells.find(std::make_pair(this->curColHoveredX, this->curColHoveredY));
 	
-	if (m_foundElement != debugCellLocations.end())
+	if (m_foundElement != worldCells.cells.end())
 	{
-		debugCellLocations.erase(m_foundElement);
+		worldCells.cells.erase(m_foundElement);
 	}
 }
 
@@ -564,7 +595,7 @@ void SimulatorPage::RenderCells()
 	glUniform1f(cellHeightUniform, 1.0f / (this->screenHeight / this->cellSizeDivisor));
 
 	// Loop through the cells
-	for (auto m_pair : debugCellLocations)
+	for (auto m_pair : worldCells.cells)
 	{
 		int m_viewportWidthMax = (int)(this->screenWidth / this->cellSizeDivisor) + this->cellScrollOffsetX;
 		int m_viewportHeightMax = (int)(this->screenHeight / this->cellSizeDivisor) + this->cellScrollOffsetY;
@@ -573,30 +604,30 @@ void SimulatorPage::RenderCells()
 			m_pair.first.second >= this->cellScrollOffsetY && m_pair.first.second < m_viewportHeightMax
 			)
 		{
-			Cell m_cell(m_pair.first.first, m_pair.first.second, m_pair.second);
-
+			//Cell m_cell(m_pair.first.first, m_pair.first.second, m_pair.second);
+			
 			int cellOffsetVerticalUniform = this->gridCellShader.getUniformLocation("u_VerticalOffset");
 			int cellOffsetHorizontalUniform = this->gridCellShader.getUniformLocation("u_HorizontalOffset");
 
-			glUniform1i(cellOffsetVerticalUniform, m_cell.y - this->cellScrollOffsetY);
-			glUniform1i(cellOffsetHorizontalUniform, m_cell.x - this->cellScrollOffsetX);
+			glUniform1i(cellOffsetVerticalUniform, m_pair.second->y - this->cellScrollOffsetY);
+			glUniform1i(cellOffsetHorizontalUniform, m_pair.second->x - this->cellScrollOffsetX);
 
 			// Set the color of the cell
-			if (m_cell.cellState == CellState::Conductor)
+			if (m_pair.second->cellState == CellState::Conductor)
 			{
 				glUniform4f(this->colorUniform, 1.0f, 1.0f, 0.0f, 1.0f);
 			}
-			else if (m_cell.cellState == CellState::Head)
+			else if (m_pair.second->cellState == CellState::Head)
 			{
 				glUniform4f(this->colorUniform, 1.0f, 0.0f, 0.0f, 1.0f);
 			}
-			else if (m_cell.cellState == CellState::Tail)
+			else if (m_pair.second->cellState == CellState::Tail)
 			{
 				glUniform4f(this->colorUniform, 0.0f, 0.0f, 1.0f, 1.0f);
 			}
 
-			m_cell.InitRender(m_cell.x, m_cell.y);
-			m_cell.Render(this->colorUniform, this->cellVaoBuffer);
+			//m_pair.second->InitRender(m_pair.second->x, m_pair.second->y);
+			m_pair.second->Render(this->colorUniform, this->cellVaoBuffer);
 		}
 		else
 			continue;
