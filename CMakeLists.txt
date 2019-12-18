@@ -42,7 +42,6 @@ set (CPPFILES
 	"src/world.cpp"
 	)
 
-configure_file(src/shaders/basicVertexShader.glsl shaders/basicVertexShader.glsl)
 configure_file(src/shaders/basicFragmentShader.glsl shaders/basicFragmentShader.glsl)
 configure_file(src/shaders/gridLineVertexShader.glsl shaders/gridLineVertexShader.glsl)
 configure_file(src/shaders/gridCellVertexShader.glsl shaders/gridCellVertexShader.glsl)
