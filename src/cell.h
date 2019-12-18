@@ -23,20 +23,38 @@ public:
 	unsigned char neighborCount;
 	std::atomic<unsigned char> atomic_neighborCount;
 public:
-	void InitRender(long a_cellX, long a_cellY);
+	void InitRender(GLint64 a_cellX, GLint64 a_cellY);
 	void Render(int a_colorUniform, int a_vaoBuffer);
-	Cell(GLint64 x, GLint64 y, CellState state) : Cell() {
+	Cell(GLint64 x, GLint64 y, CellState state) : Cell()
+	{
 		this->x = x;
 		this->y = y;
 		this->cellState = state;
 		this->decayState = state;
 	}
-	Cell() {
+
+	Cell()
+	{
 		this->decayState = Background;
 		this->cellState = Background;
 		this->x = 0;
 		this->y = 0;
 		this->atomic_neighborCount.store(0);
+	}
+
+	// Move constructor
+	Cell(Cell&& other)
+		: x(0)
+		, y(0)
+		, neighborCount('0')
+		, decayState(Conductor)
+		, atomic_neighborCount(0)
+	{
+		other.x = x;
+		other.y = y;
+		other.neighborCount = neighborCount;
+		other.decayState = decayState;
+		other.atomic_neighborCount.store(atomic_neighborCount);
 	}
 };
 

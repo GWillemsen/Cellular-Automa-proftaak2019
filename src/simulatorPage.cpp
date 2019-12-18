@@ -16,7 +16,6 @@
 
 // Class header files
 #include "simulatorPage.h"
-#include "shader.h"
 #include "config.h"
 
 // Cell variables
@@ -54,7 +53,7 @@ unsigned int cellIndices[] = {
 };
 
 // Cell debug variables
-std::map<std::pair<int, int>, CellState> debugCellLocations;
+std::map<std::pair<GLint64, GLint64>, CellState> debugCellLocations;
 
 SimulatorPage::SimulatorPage(GLFWwindow* a_window) : Page(a_window, "SimulatorPage")
 {
@@ -537,11 +536,8 @@ void SimulatorPage::RenderCells()
 			m_pair.first.second >= this->cellScrollOffsetY && m_pair.first.second < m_viewportHeightMax
 			)
 		{
-			Cell m_cell = Cell();
 
-			m_cell.x = m_pair.first.first;
-			m_cell.y = m_pair.first.second;
-			m_cell.cellState = m_pair.second;
+			Cell m_cell = Cell(m_pair.first.first, m_pair.first.second, m_pair.second);
 
 			int cellOffsetVerticalUniform = this->gridCellShader.getUniformLocation("u_VerticalOffset");
 			int cellOffsetHorizontalUniform = this->gridCellShader.getUniformLocation("u_HorizontalOffset");
