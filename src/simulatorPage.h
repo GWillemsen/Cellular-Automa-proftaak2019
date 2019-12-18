@@ -80,6 +80,8 @@ private:
 	void DrawGridCell(bool a_drawSameColor);
 	void RemoveGridCell();
 
+	// ImGui
+	void CheckGuiActions();
 };
 
 #endif

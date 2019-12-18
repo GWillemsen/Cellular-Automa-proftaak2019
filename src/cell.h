@@ -43,7 +43,7 @@ public:
 	}
 
 	// Move constructor
-	Cell(Cell&& other)
+	/*Cell(Cell&& other)
 		: x(0)
 		, y(0)
 		, neighborCount('0')
@@ -55,7 +55,7 @@ public:
 		other.neighborCount = neighborCount;
 		other.decayState = decayState;
 		other.atomic_neighborCount.store(atomic_neighborCount);
-	}
+	}*/
 };
 
 #endif // __CELL__

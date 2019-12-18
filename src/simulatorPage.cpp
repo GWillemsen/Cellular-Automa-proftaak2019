@@ -34,6 +34,9 @@ bool leftMouseIsDown = false;
 bool rightMouseIsDown = false;
 bool middleMouseIsDown = false;
 
+// Gui Variables
+bool mainMenuItemFileClicked = false;
+
 glm::vec3 cellVertices[] = {
 	// Triangle 1
 	glm::vec3(0.0f, 0.0f, 0.0f), // Index 0, Top left
@@ -156,6 +159,16 @@ void SimulatorPage::RenderOpenGL()
 	this->RenderGrid();
 }
 
+int selectedBrushType = 0;
+
+static const char* cellBrushItems[] = {
+	"Auto",
+	"Conductor",
+	"Head",
+	"Tail",
+	"Background",
+};
+
 void SimulatorPage::RenderImGui()
 {
 	// Renders the GUI with Dear ImGUI
@@ -164,9 +177,18 @@ void SimulatorPage::RenderImGui()
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
 
-	ImGui::Begin("Test");
-	ImGui::Text("This is some useful text.");
-	ImGui::End();
+	{
+		ImGui::BeginMainMenuBar();
+		ImGui::MenuItem("File", NULL, &mainMenuItemFileClicked);
+		ImGui::EndMainMenuBar();
+	}
+
+	// Create a debug frame
+	{
+		ImGui::Begin("Cell Brushes");
+		ImGui::ListBox("Cell Brushes", &selectedBrushType, cellBrushItems, 5);
+		ImGui::End();
+	}
 
 	ImGui::Render();
 
@@ -208,6 +230,7 @@ Page* SimulatorPage::Run()
 
 		this->HandleInput(this->window);
 		this->RenderOpenGL();
+		this->CheckGuiActions();
 		this->RenderImGui();
 
 		glfwSwapBuffers(this->window);
@@ -456,11 +479,16 @@ void SimulatorPage::DrawGridCell(bool a_drawSameColor)
 
 	if (m_foundElement == debugCellLocations.end())
 	{
+		if (selectedBrushType == 4)
+			return;
+
 		CellState m_cellState = CellState::Conductor;
 
 		// Check if we need to draw the default cellState
-		if (lastCellState > -1)
+		if (lastCellState > -1 && selectedBrushType == 0)
 			m_cellState = (CellState)lastCellState;
+		else
+			m_cellState = (CellState)(selectedBrushType - 1);
 
 		// Insert the new cell
 		debugCellLocations.insert(std::make_pair(std::make_pair(this->curColHoveredX, this->curColHoveredY), m_cellState));
@@ -475,17 +503,26 @@ void SimulatorPage::DrawGridCell(bool a_drawSameColor)
 		m_state += 1;
 
 		// Remove the cell when it gets the background state assigned
-		if (!a_drawSameColor && (m_foundElement->second == CellState::Background || m_state > 2))
+		if (!a_drawSameColor && (m_foundElement->second == CellState::Background || m_state > 2 || selectedBrushType == 4))
 		{
 			debugCellLocations.erase(m_foundElement);
 		}
-		else if(!a_drawSameColor)
+		else if(!a_drawSameColor && selectedBrushType == 0)
 		{
 			// Modify the state of the cell pointer
 			m_foundElement->second = (CellState)m_state;
 		}
-		else
+		else if (selectedBrushType == 4)
 		{
+			this->RemoveGridCell();
+		}
+		else if (selectedBrushType > 0 && selectedBrushType != 4)
+		{
+			m_foundElement->second = (CellState)(selectedBrushType - 1);
+		}
+		else if(selectedBrushType == 0) n
+		{
+			//if(selectedBrushType != 0 && selectedBrushType < 5)
 			m_foundElement->second = (CellState)lastCellState;
 		}
 	}
@@ -536,8 +573,7 @@ void SimulatorPage::RenderCells()
 			m_pair.first.second >= this->cellScrollOffsetY && m_pair.first.second < m_viewportHeightMax
 			)
 		{
-
-			Cell m_cell = Cell(m_pair.first.first, m_pair.first.second, m_pair.second);
+			Cell m_cell(m_pair.first.first, m_pair.first.second, m_pair.second);
 
 			int cellOffsetVerticalUniform = this->gridCellShader.getUniformLocation("u_VerticalOffset");
 			int cellOffsetHorizontalUniform = this->gridCellShader.getUniformLocation("u_HorizontalOffset");
@@ -589,4 +625,15 @@ void SimulatorPage::UpdateCellSize()
 	glm::vec3* m_bufferDataPtr = (glm::vec3*)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
 	memcpy(m_bufferDataPtr, &m_newCellVertices, sizeof(m_newCellVertices));
 	glUnmapBuffer(GL_ARRAY_BUFFER);
+}
+
+void SimulatorPage::CheckGuiActions()
+{
+	if (mainMenuItemFileClicked)
+	{
+		mainMenuItemFileClicked = false;
+		std::cout << "File is clicked" << std::endl;
+	}
+
+	// Check if brushes are clicked
 }
