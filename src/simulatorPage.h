@@ -50,9 +50,9 @@ private:
 	// Vertices, Indices and Matrices
 	glm::vec2 cellVertices[6] = {
 		glm::vec2(0.0f, 0.0f),
-		glm::vec2(0.0f, 1.0f),
-		glm::vec2(1.0f, 1.0f),
-		glm::vec2(1.0f, 0.0f),
+		glm::vec2(0.0f, 100.0f),
+		glm::vec2(100.0f, 100.0f),
+		glm::vec2(100.0f, 0.0f),
 	};
 
 	unsigned int cellIndices[6] = {
@@ -60,12 +60,12 @@ private:
 		0, 3, 2
 	};
 
-	glm::vec2 gridHorizontalLine[2] = {
+	glm::vec2 gridHorizontalLines[2] = {
 		glm::vec2(0.0f, 0.0f),
 		glm::vec2(this->screenWidth, 0.0f),
 	};
 
-	glm::vec2 gridVerticalLine[2] = {
+	glm::vec2 gridVerticalLines[2] = {
 		glm::vec2(0.0f, 0.0f),
 		glm::vec2(0.0f, this->screenHeight),
 	};

@@ -1,6 +1,8 @@
 // Standard system libraries
 #include "simulatorPage.h"
 
+glm::mat4 transformation;
+
 SimulatorPage::SimulatorPage(GLFWwindow* a_window) : Page(a_window, "SimulatorPage")
 {
 	// Create shaders
@@ -35,6 +37,7 @@ Page* SimulatorPage::Run()
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		this->HandleInput(this->window);
+		this->RenderOpenGL();
 
 		glfwSwapBuffers(this->window);
 	}
@@ -54,6 +57,8 @@ void SimulatorPage::InitOpenGL()
 	// this will make setting up the grid system more easy
 	this->projectionMatrix = glm::ortho(0.0f, this->screenWidth, 0.0f, this->screenHeight);
 
+	transformation = glm::scale(transformation, glm::vec3(2.0f, 2.0f, 1.0f));
+
 	// Initialize cell buffers
 	glGenVertexArrays(1, &this->cellVaoBuffer);
 	glGenBuffers(1, &this->cellVboBuffer);
@@ -61,12 +66,14 @@ void SimulatorPage::InitOpenGL()
 
 	glBindVertexArray(this->cellVaoBuffer);
 	
+	// Fill the buffers with data
 	glBindBuffer(GL_ARRAY_BUFFER, this->cellVboBuffer);
 	glBufferData(GL_ARRAY_BUFFER, 4 * sizeof(glm::vec2), this->cellVertices, GL_STATIC_DRAW);
 
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->cellEboBuffer);
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(unsigned int), this->cellIndices, GL_STATIC_DRAW);
 
+	// Define the data layout for the GPU
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2), (void*)0);
 	glEnableVertexAttribArray(0);
 
@@ -77,10 +84,27 @@ void SimulatorPage::InitOpenGL()
 	glGenBuffers(1, &this->gridHorizontalLineVboBuffer);
 	glGenBuffers(1, &this->gridVerticalLineVboBuffer);
 
+	// Horizontal lines
 	glBindVertexArray(this->gridHorizontalLineVaoBuffer);
+	
+	// Fill the buffer with data
 	glBindBuffer(GL_ARRAY_BUFFER, this->gridHorizontalLineVboBuffer);
+	glBufferData(GL_ARRAY_BUFFER, 2 * sizeof(glm::vec2), this->gridHorizontalLines, GL_STATIC_DRAW);
 
-	glBufferData();
+	// Define the data layout for the GPU
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2), (void*)0);
+	glEnableVertexAttribArray(0);
+
+	// Vertical lines
+	glBindVertexArray(this->gridVerticalLineVaoBuffer);
+
+	// Fill the buffer with data
+	glBindBuffer(GL_ARRAY_BUFFER, this->gridVerticalLineVboBuffer);
+	glBufferData(GL_ARRAY_BUFFER, 2 * sizeof(glm::vec2), this->gridVerticalLines, GL_STATIC_DRAW);
+
+	// Define the data layout for the GPU
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2), (void*)0);
+	glEnableVertexAttribArray(0);
 
 	//this->InitGrid();
 }
@@ -113,6 +137,17 @@ void SimulatorPage::InitSimulator()
 void SimulatorPage::RenderOpenGL()
 {
 	// Renders graphics through OpenGL
+	this->gridCellShader.use();
+	int m_colorUniform = this->gridCellShader.getUniformLocation("u_Color");
+	int m_projectionUniform = this->gridCellShader.getUniformLocation("u_Projection");
+
+	glm::mat4 m_transformed = transformation * this->projectionMatrix;
+
+	glUniform4f(m_colorUniform, 1.0f, 0.0f, 1.0f, 1.0f);
+	glUniformMatrix4fv(m_projectionUniform, 1, GL_FALSE, &m_transformed[0][0]);
+
+	glBindVertexArray(this->cellVaoBuffer);
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
 
 	// Render all of the cells
 	//this->RenderCells();
