@@ -53,7 +53,7 @@ public:
 	}
 
 	void InitRender(Shader a_shader, GLuint a_vaoBufferId);
-	void Render(int a_cellSizeInPx, int a_gridLineSizeInPx);
+	void Render(int a_cellSizeInPx);
 };
 
 #endif // __CELL__

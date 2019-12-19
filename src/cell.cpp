@@ -6,7 +6,7 @@ void Cell::InitRender(Shader a_shader, GLuint a_vaoBufferId)
 	this->vaoBuffer = a_vaoBufferId;
 }
 
-void Cell::Render(int a_cellSizeInPx, int a_gridLineSizeInPx)
+void Cell::Render(int a_cellSizeInPx)
 {
 	// Make sure that there is a valid VAO buffer bound
 	if (this->vaoBuffer == -1)
@@ -32,10 +32,8 @@ void Cell::Render(int a_cellSizeInPx, int a_gridLineSizeInPx)
 		glUniform4f(m_colorUniform, 0.0f, 0.0f, 1.0f, 1.0f);
 		break;
 	}
-	
-	float m_gridLineSize = (float)a_gridLineSizeInPx / 2.0f;
 
-	glm::mat4 m_translationMatrix = glm::translate(glm::mat4(1.0f), glm::vec3((a_cellSizeInPx + m_gridLineSize) * this->x, (a_cellSizeInPx + m_gridLineSize) * this->y, 0.0f));
+	glm::mat4 m_translationMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(a_cellSizeInPx * this->x, a_cellSizeInPx * this->y, 0.0f));
 	glm::mat4 m_scaleMatrix = glm::scale(glm::vec3(a_cellSizeInPx, a_cellSizeInPx, 0.0f));
 
 	glm::mat4 m_modelMatrix = m_translationMatrix * m_scaleMatrix;

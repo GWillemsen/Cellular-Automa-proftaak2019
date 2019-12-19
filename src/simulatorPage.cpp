@@ -134,8 +134,10 @@ void SimulatorPage::RenderOpenGL()
 {
 	// Renders graphics through OpenGL
 	
+	// Render all the cells within the viewport
 	this->RenderCells();
 
+	// Render the grid lines
 	this->RenderGrid();
 }
 
@@ -143,6 +145,23 @@ void SimulatorPage::HandleInput(GLFWwindow* a_window)
 {
 	if (glfwGetKey(a_window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(this->window, true);
+
+	if (glfwGetKey(a_window, GLFW_KEY_S) == GLFW_PRESS)
+		this->worldCells.StartSimulation();
+
+	if (glfwGetKey(a_window, GLFW_KEY_P) == GLFW_PRESS)
+		this->worldCells.PauzeSimulation();
+
+	if (glfwGetKey(a_window, GLFW_KEY_1) == GLFW_PRESS)
+	{
+		float m_speed = this->worldCells.GetTargetSpeed();
+		this->worldCells.SetTargetSpeed(m_speed + 2.0f);
+	}
+	if (glfwGetKey(a_window, GLFW_KEY_0) == GLFW_PRESS)
+	{
+		float m_speed = this->worldCells.GetTargetSpeed();
+		this->worldCells.SetTargetSpeed(m_speed - 2.0f);
+	}
 }
 
 void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_posY)
@@ -156,10 +175,58 @@ void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_pos
 
 	if (m_curCellYHovered != this->curCellHoveredY)
 		this->curCellHoveredY = m_curCellYHovered;
+
+	static int m_lastCellX = 0;
+	static int m_lastCellY = 0;
+
+	// Add / remove cells while the mouse is being dragged around
+	if (this->leftMouseButtonIsDown)
+	{
+		if (m_lastCellX != m_curCellXHovered || m_lastCellY != m_curCellYHovered)
+		{
+			this->AddCellToWorld(true);
+
+			m_lastCellX = m_curCellXHovered;
+			m_lastCellY = m_curCellYHovered;
+		}
+	}
+	else if (this->rightMouseButtonIsDown)
+	{
+		if (m_lastCellX != m_curCellXHovered || m_lastCellY != m_curCellYHovered)
+		{
+			this->RemoveCellFromWorld();
+
+			m_lastCellX = m_curCellXHovered;
+			m_lastCellY = m_curCellYHovered;
+		}
+	}
 }
 
 void SimulatorPage::MouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods)
 {
+	// Left mouse button press
+	if (a_button == 0 && a_action == 1)
+	{
+		this->leftMouseButtonIsDown = true;
+		this->AddCellToWorld(false);
+	}
+	// Left mouse button release
+	else if (a_button == 0 && a_action == 0)
+	{
+		this->leftMouseButtonIsDown = false;
+	}
+
+	// Right mouse button press
+	if (a_button == 1 && a_action == 1)
+	{
+		this->rightMouseButtonIsDown = true;
+		this->RemoveCellFromWorld();
+	}
+	// Right mouse button release
+	else if (a_button == 1 && a_action == 0)
+	{
+		this->rightMouseButtonIsDown = false;
+	}
 }
 
 void SimulatorPage::RenderCells()
@@ -170,19 +237,11 @@ void SimulatorPage::RenderCells()
 
 	glUniformMatrix4fv(m_projectionMatrixUniform, 1, GL_FALSE, &this->projectionMatrix[0][0]);
 
-	// Render cells
-	Cell m_testCell(0, 0, CellState::Conductor);
-	Cell m_testCell2(1, 1, CellState::Head);
-	Cell m_testCell3(2, 2, CellState::Tail);
-
-	m_testCell.InitRender(this->gridCellShader, this->cellVaoBuffer);
-	m_testCell.Render(this->cellSizeInPx, this->gridLineSizeInPx);
-
-	m_testCell2.InitRender(this->gridCellShader, this->cellVaoBuffer);
-	m_testCell2.Render(this->cellSizeInPx, this->gridLineSizeInPx);
-
-	m_testCell3.InitRender(this->gridCellShader, this->cellVaoBuffer);
-	m_testCell3.Render(this->cellSizeInPx, this->gridLineSizeInPx);
+	// Render all of the worldcells
+	for (auto m_worldCell : this->worldCells.cells)
+	{
+		m_worldCell.second->Render(this->cellSizeInPx);
+	}
 }
 
 void SimulatorPage::RenderGrid()
@@ -226,4 +285,54 @@ void SimulatorPage::RenderGrid()
 	glBindVertexArray(this->gridVerticalLineVaoBuffer);
 
 	glDrawArraysInstanced(GL_LINES, 0, 2, m_lineCount + 2);
+}
+
+void SimulatorPage::AddCellToWorld(bool a_mouseIsBeingDragged)
+{
+	auto m_worldCell = this->worldCells.cells.find(std::make_pair(this->curCellHoveredX, this->curCellHoveredY));
+
+	CellState m_cellState = CellState::Conductor; // Gets manipulated based on logic
+
+	// Insert a new cell
+	if (m_worldCell == this->worldCells.cells.end())
+	{
+		// No cells found, insert the new cell into the world
+		this->worldCells.InsertCellAt(this->curCellHoveredX, this->curCellHoveredY, m_cellState);
+
+		// Find the newly added worldcell and initialize the rendering
+		auto m_newWorldCell = this->worldCells.cells.find(std::make_pair(this->curCellHoveredX, this->curCellHoveredY));
+		
+		if (m_newWorldCell != this->worldCells.cells.end())
+			m_newWorldCell->second->InitRender(this->gridCellShader, this->cellVaoBuffer);
+	}
+	// Change cell state
+	else
+	{
+		// Only cycle through the state by clicking
+		if (!a_mouseIsBeingDragged)
+		{
+			// Update to the new cell state
+			if (m_cellState != m_worldCell->second->cellState)
+				m_cellState = m_worldCell->second->cellState;
+
+			if (((CellState)(int)m_cellState + 1) != CellState::Background)
+				m_cellState = (CellState)((int)m_cellState + 1);
+			// Reset the cellstate back to Conductor when it is being set to the background state
+			else
+				m_cellState = CellState::Conductor;
+		}
+
+		m_worldCell->second->cellState = m_cellState;
+	}
+}
+
+void SimulatorPage::RemoveCellFromWorld()
+{
+	auto m_worldCell = this->worldCells.cells.find(std::make_pair(this->curCellHoveredX, this->curCellHoveredY));
+
+	// Make sure that the cell exists within the world
+	if (m_worldCell != this->worldCells.cells.end())
+	{
+		this->worldCells.cells.erase(m_worldCell);
+	}
 }

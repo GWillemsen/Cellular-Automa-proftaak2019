@@ -87,6 +87,11 @@ private:
 	long curCellHoveredX = 0;
 	long curCellHoveredY = 0;
 
+	const char* brushState = "auto";
+
+	bool leftMouseButtonIsDown = false;
+	bool rightMouseButtonIsDown = false;
+
 public:
 	SimulatorPage(GLFWwindow* a_window);
 	Page *Run();
@@ -109,6 +114,9 @@ private:
 	// Grid
 	void RenderGrid();
 	void RenderCells();
+
+	void AddCellToWorld(bool a_mouseIsBeingDragged);
+	void RemoveCellFromWorld();
 
 	// ImGui
 	void CheckGuiActions();
