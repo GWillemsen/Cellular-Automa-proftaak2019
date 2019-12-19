@@ -1,8 +1,6 @@
 // Standard system libraries
 #include "simulatorPage.h"
 
-glm::mat4 transformation;
-
 SimulatorPage::SimulatorPage(GLFWwindow* a_window) : Page(a_window, "SimulatorPage")
 {
 	// Create shaders
@@ -36,6 +34,7 @@ Page* SimulatorPage::Run()
 		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 
+		// Logic
 		this->HandleInput(this->window);
 		this->RenderOpenGL();
 
@@ -49,15 +48,12 @@ Page* SimulatorPage::Run()
 	return m_nextPage;
 }
 
-
 // Initializes and presets all systems that render with OpenGL
 void SimulatorPage::InitOpenGL()
 {
 	// Rewrite the coordinate system to be in a pixel to pixel ratio, 
 	// this will make setting up the grid system more easy
-	this->projectionMatrix = glm::ortho(0.0f, this->screenWidth, 0.0f, this->screenHeight);
-
-	transformation = glm::scale(transformation, glm::vec3(2.0f, 2.0f, 1.0f));
+	this->projectionMatrix = glm::ortho(0.0f, (float)this->screenWidth, (float)this->screenHeight, 0.0f);
 
 	// Initialize cell buffers
 	glGenVertexArrays(1, &this->cellVaoBuffer);
@@ -137,28 +133,10 @@ void SimulatorPage::InitSimulator()
 void SimulatorPage::RenderOpenGL()
 {
 	// Renders graphics through OpenGL
-	this->gridCellShader.use();
-	int m_colorUniform = this->gridCellShader.getUniformLocation("u_Color");
-	int m_projectionUniform = this->gridCellShader.getUniformLocation("u_Projection");
+	
+	this->RenderCells();
 
-	glm::mat4 m_transformed = transformation * this->projectionMatrix;
-
-	glUniform4f(m_colorUniform, 1.0f, 0.0f, 1.0f, 1.0f);
-	glUniformMatrix4fv(m_projectionUniform, 1, GL_FALSE, &m_transformed[0][0]);
-
-	glBindVertexArray(this->cellVaoBuffer);
-	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
-
-	// Render all of the cells
-	//this->RenderCells();
-
-	// Render the grid as the last item, this way the grid becomes an overlay
-	//this->RenderGrid();
-}
-
-void SimulatorPage::InitGrid()
-{
-
+	this->RenderGrid();
 }
 
 void SimulatorPage::HandleInput(GLFWwindow* a_window)
@@ -169,10 +147,83 @@ void SimulatorPage::HandleInput(GLFWwindow* a_window)
 
 void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_posY)
 {
+	// Calculate in which cell the mouse cursor is located
+	long m_curCellXHovered = ((long)(this->gridLineSizeInPx + a_posX) / this->cellSizeInPx);
+	long m_curCellYHovered = ((long)(this->gridLineSizeInPx + a_posY) / this->cellSizeInPx);
 
+	if (m_curCellXHovered != this->curCellHoveredX)
+		this->curCellHoveredX = m_curCellXHovered;
+
+	if (m_curCellYHovered != this->curCellHoveredY)
+		this->curCellHoveredY = m_curCellYHovered;
 }
 
 void SimulatorPage::MouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods)
 {
+}
 
+void SimulatorPage::RenderCells()
+{
+	// Set the projection matrix
+	this->gridCellShader.use();
+	int m_projectionMatrixUniform = this->gridCellShader.getUniformLocation("u_ProjectionMatrix");
+
+	glUniformMatrix4fv(m_projectionMatrixUniform, 1, GL_FALSE, &this->projectionMatrix[0][0]);
+
+	// Render cells
+	Cell m_testCell(0, 0, CellState::Conductor);
+	Cell m_testCell2(1, 1, CellState::Head);
+	Cell m_testCell3(2, 2, CellState::Tail);
+
+	m_testCell.InitRender(this->gridCellShader, this->cellVaoBuffer);
+	m_testCell.Render(this->cellSizeInPx, this->gridLineSizeInPx);
+
+	m_testCell2.InitRender(this->gridCellShader, this->cellVaoBuffer);
+	m_testCell2.Render(this->cellSizeInPx, this->gridLineSizeInPx);
+
+	m_testCell3.InitRender(this->gridCellShader, this->cellVaoBuffer);
+	m_testCell3.Render(this->cellSizeInPx, this->gridLineSizeInPx);
+}
+
+void SimulatorPage::RenderGrid()
+{
+	this->gridLineShader.use();
+	
+	// Get the uniforms
+	int m_projectionMatrixUniform = this->gridLineShader.getUniformLocation("u_ProjectionMatrix");
+	int m_drawHorizontalUniform = this->gridLineShader.getUniformLocation("u_DrawHorizontal");
+	int m_cellSizeInPxUniform = this->gridLineShader.getUniformLocation("u_CellSizeInPx");
+	int m_colorUniform = this->gridLineShader.getUniformLocation("u_Color");
+
+	// Set the grid line size
+	glLineWidth((GLfloat)this->gridLineSizeInPx);
+
+	// Set the projection matrix
+	glUniformMatrix4fv(m_projectionMatrixUniform, 1, GL_FALSE, &this->projectionMatrix[0][0]);
+
+	// Set the line color
+	glUniform4f(m_colorUniform, 0.5f, 0.5f, 0.5f, 1.0f);
+
+	// Set the cell size in pixels
+	glUniform1i(m_cellSizeInPxUniform, this->cellSizeInPx);
+
+	// Draw horizontal grid lines
+	glUniform1i(m_drawHorizontalUniform, 1);
+
+	int m_lineCount = this->screenHeight / this->cellSizeInPx;
+
+	glBindVertexArray(this->gridHorizontalLineVaoBuffer);
+
+	glDrawArraysInstanced(GL_LINES, 0, 2, m_lineCount + 2);
+
+	// Draw vertical grid lines
+	glUniform1i(m_drawHorizontalUniform, 0);
+
+	glBindVertexArray(this->gridVerticalLineVaoBuffer);
+
+	m_lineCount = this->screenWidth / this->cellSizeInPx;
+
+	glBindVertexArray(this->gridVerticalLineVaoBuffer);
+
+	glDrawArraysInstanced(GL_LINES, 0, 2, m_lineCount + 2);
 }

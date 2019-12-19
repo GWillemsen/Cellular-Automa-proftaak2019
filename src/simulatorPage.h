@@ -29,10 +29,6 @@
 
 class SimulatorPage : public Page
 {
-public:
-	float screenWidth = 1920.0f;
-	float screenHeight = 1080.0f;
-
 private:
 	const char* glsl_version = "#version 330 core";
 	World worldCells;
@@ -41,7 +37,7 @@ private:
 	ImGuiIO imguiIO;
 
 	// Coordinate system
-	glm::mat4 projectionMatrix = glm::ortho(0.0f, this->screenWidth, 0.0f, this->screenHeight);
+	glm::mat4 projectionMatrix = glm::ortho(0.0f, (float)this->screenWidth, (float)this->screenHeight, 0.0f);
 
 	// Shaders
 	Shader gridLineShader;
@@ -50,9 +46,9 @@ private:
 	// Vertices, Indices and Matrices
 	glm::vec2 cellVertices[6] = {
 		glm::vec2(0.0f, 0.0f),
-		glm::vec2(0.0f, 100.0f),
-		glm::vec2(100.0f, 100.0f),
-		glm::vec2(100.0f, 0.0f),
+		glm::vec2(0.0f, 1.0f),
+		glm::vec2(1.0f, 1.0f),
+		glm::vec2(1.0f, 0.0f),
 	};
 
 	unsigned int cellIndices[6] = {
@@ -73,6 +69,9 @@ private:
 	// OpenGL objects
 
 	// Cell rendering
+	int cellSizeInPx = 48;
+	int gridLineSizeInPx = 2;
+
 	GLuint cellVaoBuffer = -1;
 	GLuint cellVboBuffer = -1;
 	GLuint cellEboBuffer = -1;
@@ -83,6 +82,10 @@ private:
 	
 	GLuint gridVerticalLineVaoBuffer = -1; // Vertical line rendering
 	GLuint gridVerticalLineVboBuffer = -1;
+
+	// Grid system
+	long curCellHoveredX = 0;
+	long curCellHoveredY = 0;
 
 public:
 	SimulatorPage(GLFWwindow* a_window);
@@ -104,7 +107,6 @@ private:
 	void MouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods);
 
 	// Grid
-	void InitGrid();
 	void RenderGrid();
 	void RenderCells();
 

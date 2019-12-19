@@ -1,6 +1,11 @@
 #include <iostream>
 #include <atomic>
+
 #include <glad/glad.h>
+#include <glm/glm.hpp>
+#include <glm\gtx\transform.hpp>
+
+#include "shader.h"
 
 #ifndef __CELL__
 #define __CELL__
@@ -16,19 +21,24 @@ enum CellState
 class Cell
 {
 public:
-	GLint64 x;
-	GLint64 y;
+	long x;
+	long y;
+
 	CellState cellState;
 	CellState decayState;
+	
 	unsigned char neighborCount;
 	std::atomic<unsigned char> atomic_neighborCount;
+
+private:
+	GLuint vaoBuffer = -1;
+	Shader shader;
+
 public:
-	void InitRender(GLint64 a_cellX, GLint64 a_cellY);
-	void Render(int a_colorUniform, int a_vaoBuffer);
 	Cell(GLint64 x, GLint64 y, CellState state) : Cell()
 	{
-		this->x = x;
-		this->y = y;
+		this->x = (long)x;
+		this->y = (long)y;
 		this->cellState = state;
 		this->decayState = state;
 	}
@@ -42,20 +52,8 @@ public:
 		this->atomic_neighborCount.store(0);
 	}
 
-	// Move constructor
-	/*Cell(Cell&& other)
-		: x(0)
-		, y(0)
-		, neighborCount('0')
-		, decayState(Conductor)
-		, atomic_neighborCount(0)
-	{
-		other.x = x;
-		other.y = y;
-		other.neighborCount = neighborCount;
-		other.decayState = decayState;
-		other.atomic_neighborCount.store(atomic_neighborCount);
-	}*/
+	void InitRender(Shader a_shader, GLuint a_vaoBufferId);
+	void Render(int a_cellSizeInPx, int a_gridLineSizeInPx);
 };
 
 #endif // __CELL__
