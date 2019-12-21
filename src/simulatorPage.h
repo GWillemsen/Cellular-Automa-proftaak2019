@@ -87,10 +87,17 @@ private:
 	long curCellHoveredX = 0;
 	long curCellHoveredY = 0;
 
+	long scrollOffsetX = 0;
+	long scrollOffsetY = 0;
+
 	const char* brushState = "auto";
 
 	bool leftMouseButtonIsDown = false;
 	bool rightMouseButtonIsDown = false;
+	bool scrollWheelButtonIsDown = false;
+
+	// GUI (Dear ImGUI)
+	bool fileMenuItemFileIsClicked = false;
 
 public:
 	SimulatorPage(GLFWwindow* a_window);
@@ -110,6 +117,7 @@ private:
 	void HandleInput(GLFWwindow* a_window);
 	void MouseHover(GLFWwindow* a_window, double a_posX, double a_posY);
 	void MouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods);
+	void MouseScroll(GLFWwindow* a_window, double a_xOffset, double a_yOffset);
 
 	// Grid
 	void RenderGrid();

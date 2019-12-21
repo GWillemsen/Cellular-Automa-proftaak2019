@@ -37,6 +37,7 @@ Page* SimulatorPage::Run()
 		// Logic
 		this->HandleInput(this->window);
 		this->RenderOpenGL();
+		this->RenderImGui();
 
 		glfwSwapBuffers(this->window);
 	}
@@ -141,6 +142,27 @@ void SimulatorPage::RenderOpenGL()
 	this->RenderGrid();
 }
 
+void SimulatorPage::RenderImGui()
+{
+	// Renders the GUI with Dear ImGUI
+
+	ImGui_ImplOpenGL3_NewFrame();
+	ImGui_ImplGlfw_NewFrame();
+	ImGui::NewFrame();
+
+	{
+		ImGui::BeginMainMenuBar();
+		ImGui::MenuItem("File", NULL, &this->fileMenuItemFileIsClicked);
+		ImGui::EndMainMenuBar();
+	}
+
+	ImGui::Render();
+
+	ImGui::EndFrame();
+
+	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+}
+
 void SimulatorPage::HandleInput(GLFWwindow* a_window)
 {
 	if (glfwGetKey(a_window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -167,18 +189,24 @@ void SimulatorPage::HandleInput(GLFWwindow* a_window)
 void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_posY)
 {
 	// Calculate in which cell the mouse cursor is located
-	long m_curCellXHovered = ((long)(this->gridLineSizeInPx + a_posX) / this->cellSizeInPx);
-	long m_curCellYHovered = ((long)(this->gridLineSizeInPx + a_posY) / this->cellSizeInPx);
+	long m_curCellXHovered = (((long)(this->gridLineSizeInPx + a_posX) / this->cellSizeInPx));
+	long m_curCellYHovered = (((long)(this->gridLineSizeInPx + a_posY) / this->cellSizeInPx));
 
-	if (m_curCellXHovered != this->curCellHoveredX)
-		this->curCellHoveredX = m_curCellXHovered;
+	if (this->curCellHoveredX != m_curCellXHovered)
+	{
+		this->curCellHoveredX = m_curCellXHovered - this->scrollOffsetX;
+		std::cout << "x" << this->curCellHoveredX << "y" << this->curCellHoveredX << std::endl;
+	}
 
-	if (m_curCellYHovered != this->curCellHoveredY)
-		this->curCellHoveredY = m_curCellYHovered;
+	if (this->curCellHoveredY != m_curCellYHovered)
+	{
+		this->curCellHoveredY = m_curCellYHovered - this->scrollOffsetY;
+		std::cout << "x" << this->curCellHoveredX << "y" << this->curCellHoveredY << std::endl;
+	}
 
 	static int m_lastCellX = 0;
 	static int m_lastCellY = 0;
-
+	  
 	// Add / remove cells while the mouse is being dragged around
 	if (this->leftMouseButtonIsDown)
 	{
@@ -199,6 +227,35 @@ void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_pos
 			m_lastCellX = m_curCellXHovered;
 			m_lastCellY = m_curCellYHovered;
 		}
+	}
+
+	// Scrolling
+	static int m_lastMouseX = 0;
+	static int m_lastMouseY = 0;
+	
+	if (this->scrollWheelButtonIsDown)
+	{
+		long m_scrollDifferenceX = a_posX - m_lastMouseX;
+		long m_scrollDifferenceY = a_posY - m_lastMouseY;
+
+		if (this->curCellHoveredX != m_lastCellX || this->curCellHoveredY != m_lastCellY)
+		{
+			if (m_scrollDifferenceX > 0)
+				this->scrollOffsetX += 1;
+			else if (m_scrollDifferenceX < 0)
+				this->scrollOffsetX -= 1;
+
+			if (m_scrollDifferenceY > 0)
+				this->scrollOffsetY += 1;
+			else if (m_scrollDifferenceY < 0)
+				this->scrollOffsetY -= 1;
+		}
+
+		m_lastMouseX = a_posX;
+		m_lastMouseY = a_posY;
+
+		m_lastCellX = m_curCellXHovered;
+		m_lastCellY = m_curCellYHovered;
 	}
 }
 
@@ -227,6 +284,31 @@ void SimulatorPage::MouseClick(GLFWwindow* a_window, int a_button, int a_action,
 	{
 		this->rightMouseButtonIsDown = false;
 	}
+
+	// Scroll wheel button press
+	if (a_button == 2 && a_action == 1)
+	{
+		this->scrollWheelButtonIsDown = true;
+	}
+	// Scroll wheel button release
+	else if (a_button == 2 && a_action == 0)
+	{
+		this->scrollWheelButtonIsDown = false;
+	}
+}
+
+void SimulatorPage::MouseScroll(GLFWwindow* a_window, double a_xOffset, double a_yOffset)
+{
+	// Zoom in
+	if (a_yOffset > 0 && this->cellSizeInPx < 128)
+	{
+		this->cellSizeInPx += 2;
+	}
+	// Zoom out
+	else if (a_yOffset < 0 && this->cellSizeInPx > 16)
+	{
+		this->cellSizeInPx -= 2;
+	}
 }
 
 void SimulatorPage::RenderCells()
@@ -240,7 +322,7 @@ void SimulatorPage::RenderCells()
 	// Render all of the worldcells
 	for (auto m_worldCell : this->worldCells.cells)
 	{
-		m_worldCell.second->Render(this->cellSizeInPx);
+		m_worldCell.second->Render(this->cellSizeInPx, this->scrollOffsetX, this->scrollOffsetY);
 	}
 }
 
