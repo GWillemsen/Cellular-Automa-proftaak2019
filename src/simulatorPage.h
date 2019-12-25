@@ -1,60 +1,106 @@
+// System libaries
 #include <iostream>
-#include <GLFW\glfw3.h>
-#include <GLM/ext/matrix_projection.hpp>
-#include <glm/ext/matrix_clip_space.hpp> // glm::perspective
+#include <thread>
+#include <map>
 
+// GLAD, GLM and GLFW
+#include <glad\glad.h>
+#include <GLFW\glfw3.h>
+
+#include <glm\glm.hpp>
+#include <glm\gtx\transform.hpp>
+#include <glm\ext\matrix_projection.hpp>
+#include <glm\ext\matrix_clip_space.hpp> // glm::perspective
+
+// Dear ImGui
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
+
+// Class header files
 #include "page.h"
 #include "world.h"
 #include "cell.h"
 #include "shader.h"
+#include "config.h"
 
 #ifndef __SIMULATORPAGE__
 #define __SIMULATORPAGE__
 
 class SimulatorPage : public Page
 {
-public:
-	SimulatorPage(GLFWwindow* a_window);
-	SimulatorPage(GLFWwindow* a_window, Shader a_shader);
-
 private:
 	const char* glsl_version = "#version 330 core";
-
-	World worldCells[1];
-
-	GLuint colorUniform;
-	glm::mat4 projectionMatrix = glm::ortho(0.0f, 1.0f, 0.0f, 1.0f);
-
-	GLuint cellVaoBuffer;
-	GLuint cellVboBuffer;
-
-	Shader shaders;
-
-	// Grid
-	Shader gridLineShader;
-	Shader gridCellShader;
-	glm::vec3 lineColor = glm::vec3(1.5f, 1.5f, 1.5f);
-
-	int cellSizeDivisor = 32;
-	int lineThickness = 4;
-	int curColHoveredX = 0;
-	int curColHoveredY = 0;
-	
-	float cellScrollOffsetX = 0.0f;
-	float cellScrollOffsetY = 0.0f;
-
-	float gridLineScrollOffsetX = 0.0f;
-	float gridLineScrollOffsetY = 0.0f;
-
-	GLuint gridRowVAO;
-	GLuint gridRowVBO;
-	GLuint gridColumnVAO;
-	GLuint gridColumnVBO;
+	World worldCells;
 
 	// ImGUI
 	ImGuiIO imguiIO;
 
+	// Coordinate system
+	glm::mat4 projectionMatrix = glm::ortho(0.0f, (float)this->screenWidth, (float)this->screenHeight, 0.0f);
+
+	// Shaders
+	Shader gridLineShader;
+	Shader gridCellShader;
+
+	// Vertices, Indices and Matrices
+	glm::vec2 cellVertices[6] = {
+		glm::vec2(0.0f, 0.0f),
+		glm::vec2(0.0f, 1.0f),
+		glm::vec2(1.0f, 1.0f),
+		glm::vec2(1.0f, 0.0f),
+	};
+
+	unsigned int cellIndices[6] = {
+		0, 1, 2,
+		0, 3, 2
+	};
+
+	glm::vec2 gridHorizontalLines[2] = {
+		glm::vec2(0.0f, 0.0f),
+		glm::vec2(this->screenWidth, 0.0f),
+	};
+
+	glm::vec2 gridVerticalLines[2] = {
+		glm::vec2(0.0f, 0.0f),
+		glm::vec2(0.0f, this->screenHeight),
+	};
+
+	// OpenGL objects
+
+	// Cell rendering
+	int cellSizeInPx = 48;
+	int gridLineSizeInPx = 2;
+
+	GLuint cellVaoBuffer = -1;
+	GLuint cellVboBuffer = -1;
+	GLuint cellEboBuffer = -1;
+
+	// Grid line rendering
+	GLuint gridHorizontalLineVaoBuffer = -1; // Horizontal line rendering
+	GLuint gridHorizontalLineVboBuffer = -1;
+	
+	GLuint gridVerticalLineVaoBuffer = -1; // Vertical line rendering
+	GLuint gridVerticalLineVboBuffer = -1;
+
+	// Grid system
+	long curCellHoveredX = 0;
+	long curCellHoveredY = 0;
+
+	long scrollOffsetX = 0;
+	long scrollOffsetY = 0;
+
+	const char* brushState = "auto";
+
+	bool leftMouseButtonIsDown = false;
+	bool rightMouseButtonIsDown = false;
+	bool scrollWheelButtonIsDown = false;
+
+	// GUI (Dear ImGUI)
+	bool fileMenuItemFileIsClicked = false;
+
 public:
+	SimulatorPage(GLFWwindow* a_window);
 	Page *Run();
 
 private:
@@ -71,15 +117,17 @@ private:
 	void HandleInput(GLFWwindow* a_window);
 	void MouseHover(GLFWwindow* a_window, double a_posX, double a_posY);
 	void MouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods);
+	void MouseScroll(GLFWwindow* a_window, double a_xOffset, double a_yOffset);
 
 	// Grid
-	void InitGrid();
 	void RenderGrid();
 	void RenderCells();
-	void UpdateCellSize();
-	void DrawGridCell(bool a_drawSameColor);
-	void RemoveGridCell();
 
+	void AddCellToWorld(bool a_mouseIsBeingDragged);
+	void RemoveCellFromWorld();
+
+	// ImGui
+	void CheckGuiActions();
 };
 
 #endif

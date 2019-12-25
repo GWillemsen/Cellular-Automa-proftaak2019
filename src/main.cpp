@@ -35,7 +35,7 @@ unsigned int CreateEBO(unsigned int* indices, int a_indiceCount);
 
 void mouseHover(GLFWwindow* a_window, double a_posX, double a_posY);
 void mouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods);
-
+void mouseScroll(GLFWwindow* a_window, double a_xOffset, double a_yOffset);
 
 Page* m_nextPage = nullptr;
 int screenWidth = 1920;
@@ -69,6 +69,7 @@ int main()
 	// Set callbacks
 	glfwSetMouseButtonCallback(window, mouseClick); // Catches the mouse click event
 	glfwSetCursorPosCallback(window, mouseHover); // Catches the mouse move event
+	glfwSetScrollCallback(window, mouseScroll);
 
 	m_nextPage = new SimulatorPage(window);
 
@@ -195,7 +196,6 @@ unsigned int CreateVAO()
 	return renderVao;
 }
 
-
 void mouseHover(GLFWwindow* a_window, double a_posX, double a_posY)
 {
 	if (m_nextPage != nullptr)
@@ -206,4 +206,10 @@ void mouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods)
 {
 	if (m_nextPage != nullptr)
 		m_nextPage->MouseClick(a_window, a_button, a_action, a_mods);
+}
+
+void mouseScroll(GLFWwindow* a_window, double a_xOffset, double a_yOffset)
+{
+	if (m_nextPage != nullptr)
+		m_nextPage->MouseScroll(a_window, a_xOffset, a_yOffset);
 }

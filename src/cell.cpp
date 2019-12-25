@@ -1,19 +1,51 @@
-#include <glad/glad.h>
-#include <glm/glm.hpp>
 #include "cell.h"
 
-void Cell::InitRender(GLint64 a_cellX, GLint64 a_cellY)
+void Cell::InitRender(Shader a_shader, GLuint a_vaoBufferId)
 {
-	// Initializes the rendering
-
-	this->x = a_cellX;
-	this->y = a_cellY;
+	this->shader = a_shader;
+	this->vaoBuffer = a_vaoBufferId;
 }
 
-void Cell::Render(int a_colorUniform, int a_vaoBuffer)
+void Cell::Render(int a_cellSizeInPx, long a_scrollOffsetX, long a_scrollOffsetY)
 {
-	glBindVertexArray(a_vaoBuffer);
+	// Make sure that there is a valid VAO buffer bound
+	if (this->vaoBuffer == -1)
+		return;
 
-	// Draw the cell
+	this->shader.use();
+	int m_modelMatrixUniform = this->shader.getUniformLocation("u_ModelMatrix");
+	int m_colorUniform = this->shader.getUniformLocation("u_Color");
+
+	// Give the cell the appropiate color based on the cell state
+	switch (this->cellState)
+	{
+	case CellState::Conductor:
+		// Yellow
+		glUniform4f(m_colorUniform, 1.0f, 1.0f, 0.0f, 1.0f);
+		break;
+	case CellState::Head:
+		// Red
+		glUniform4f(m_colorUniform, 1.0f, 0.0f, 0.0f, 1.0f);
+		break;
+	case CellState::Tail:
+		// Blue
+		glUniform4f(m_colorUniform, 0.0f, 0.0f, 1.0f, 1.0f);
+		break;
+	}
+
+	int m_translateX = this->x + a_scrollOffsetX;
+	int m_translateY = this->y + a_scrollOffsetY;
+
+	glm::mat4 m_translationMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(a_cellSizeInPx * m_translateX, a_cellSizeInPx * m_translateY, 0.0f));
+	glm::mat4 m_scaleMatrix = glm::scale(glm::vec3(a_cellSizeInPx, a_cellSizeInPx, 0.0f));
+
+	glm::mat4 m_modelMatrix = m_translationMatrix * m_scaleMatrix;
+
+	// Set the model-view-projection matrix
+	glUniformMatrix4fv(m_modelMatrixUniform, 1, GL_FALSE, &m_modelMatrix[0][0]);
+
+	glBindVertexArray(this->vaoBuffer);
 	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
+
+	glBindVertexArray(0);
 }

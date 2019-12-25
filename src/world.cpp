@@ -478,7 +478,7 @@ void World::TimerThread()
 				else
 				{
 					// Calculate the new time to wait, and set to wait if we need to, otherwise start the next update frame
-					m_int = (long)(1000.0 * this->targetSimulationSpeed);
+					/*m_int = (long)(1000.0 * this->targetSimulationSpeed);
 					auto m_newNextWake = m_nowTime + std::chrono::milliseconds(m_int);
 					auto m_now = std::chrono::steady_clock::now() - std::chrono::milliseconds(200);
 					if (m_newNextWake < m_now)
@@ -488,7 +488,8 @@ void World::TimerThread()
 					else
 					{
 						m_nextWake = m_newNextWake;
-					}
+					}*/
+					m_nextRun = true;
 				}
 			}
 			else
@@ -517,24 +518,31 @@ Cell* World::GetCopyOfCellAt(long a_cellX, long a_cellY)
 
 bool World::InsertCellAt(long a_cellX, long a_cellY, CellState a_state)
 {
-	std::lock_guard<std::shared_mutex> m_lk(this->cellsEditLock);
-	if (this->cells.find(std::make_pair(a_cellX, a_cellY)) == this->cells.end())
+	this->cellsEditLock.lock_shared();
+	if (this->cells.find(std::make_pair(a_cellX, a_cellY)) != this->cells.end())
+	{
+		this->cellsEditLock.unlock_shared();
 		return false;
+	}
 	this->cells.insert(std::make_pair(std::make_pair(a_cellX, a_cellY), new Cell(a_cellX, a_cellY, a_state)));
+	this->cellsEditLock.unlock_shared();
 	return true;
 }
 
 bool World::UpdateCellState(long a_cellX, long a_cellY, std::function<bool (Cell*)> a_updater)
 {
-	std::lock_guard<std::shared_mutex> m_lk(this->cellsEditLock);
+	this->cellsEditLock.lock_shared();
 	auto m_found = this->cells.find(std::make_pair(a_cellX, a_cellY));
 	if (m_found == this->cells.end())
 	{
+		this->cellsEditLock.unlock_shared();
 		return false;
 	}
 	else
 	{
-		return a_updater(m_found->second);
+		bool m_result = a_updater(m_found->second);
+		this->cellsEditLock.unlock_shared();
+		return m_result;
 	}
 }
 
