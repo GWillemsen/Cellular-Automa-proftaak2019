@@ -246,24 +246,21 @@ void World::UpdateSimulationWithSingleGeneration()
 
 void World::ProcessPartContinuesly(unsigned int a_threadId, unsigned int a_threadCount)
 {
-	using std::pair;
 	unsigned long m_nextToGenerateGeneration = 1;
 	std::unique_lock<std::mutex> m_lk(this->currentGenerationLock);
 	auto m_iterator = this->cells.begin();
 	auto m_sectionEnd = this->cells.end();
-	auto m_lastCellCount = this->cells.size();
-	long m_lastIteratorPos = 0;
-
+	mapSizeType  m_lastCellCount = this->cells.size();
 
 	while (!this->cancelSimulation)
 	{
 		// lk is only locked when the predicate is checked and if it returns true. 
 		// otherwise it will unlock lk allowing other threads to check the condition as well
 		// the whole loop set, see -> https://stackoverflow.com/a/2763749
-
 		this->nextUpdateCv.wait(m_lk, [this, m_nextToGenerateGeneration] {
 			return m_nextToGenerateGeneration <= this->currentGeneration || this->cancelSimulation;
 		});
+
 		// unlock lk. we only needed the lock to check the currentGeneration.
 		m_lk.unlock();
 		if (!this->cancelSimulation)
@@ -271,9 +268,9 @@ void World::ProcessPartContinuesly(unsigned int a_threadId, unsigned int a_threa
 			// Lock editing to the map
 			this->cellsEditLock.lock_shared();
 
-			long m_cellCount = this->cells.size();
-			long m_perThread = m_cellCount / a_threadCount;
-			long m_nextPosition = m_perThread * a_threadId;
+			mapSizeType m_cellCount = this->cells.size();
+			mapSizeType m_perThread = m_cellCount / a_threadCount;
+			mapSizeType m_nextPosition = m_perThread * a_threadId;
 			
 			// Update the ending of the end processor
 			if (m_cellCount != m_lastCellCount)
@@ -285,12 +282,11 @@ void World::ProcessPartContinuesly(unsigned int a_threadId, unsigned int a_threa
 				std::advance(m_sectionEnd, m_nextPosition + m_perThread);
 			}
 
-			// Get offset relative to the beginning
-			long m_difference = std::distance(this->cells.begin(), m_iterator);
 			// Calculate what number to move (negative or positive) to get to the m_nextPosition value
-			long m_toMove = m_nextPosition - m_difference;
+			// Needs to be a signed number as m_toMove can go into the negative (for going backwards)
+			long long m_difference = std::distance(this->cells.begin(), m_iterator);
+			long long m_toMove = m_nextPosition - m_difference;
 			std::advance(m_iterator, m_toMove);
-
 
 			while (m_iterator != m_sectionEnd)
 			{
@@ -330,9 +326,8 @@ void World::ProcessLastPart()
 	std::unique_lock<std::mutex> m_lk(this->currentGenerationLock);
 	auto m_iterator = this->cells.begin();
 	auto m_sectionEnd = this->cells.end();
-	auto m_lastCellCount = this->cells.size();
+	mapSizeType  m_lastCellCount = this->cells.size();
 	long m_lastIteratorPos = 0;
-
 
 	while (!this->cancelSimulation)
 	{
@@ -345,12 +340,13 @@ void World::ProcessLastPart()
 		m_lk.unlock();
 		if (!this->cancelSimulation)
 		{
-			//long long -> specified by c++0x standard to be at least 64 bits.
 			// Lock editing to the map
 			this->cellsEditLock.lock_shared();
-			auto m_cellCount = this->cells.size();
-			auto m_perThread = m_cellCount / this->totalThreads;
-			long m_nextPosition = m_perThread * (this->totalThreads - 1);
+			
+			//unsigned long long -> specified by c++0x standard to be at least a 64 bits integer.
+			mapSizeType m_cellCount = this->cells.size();
+			mapSizeType m_perThread = m_cellCount / this->totalThreads;
+			mapSizeType m_nextPosition = m_perThread * (this->totalThreads - 1);
 			
 			// Update the ending of the end processor
 			if (m_cellCount != m_lastCellCount)
@@ -360,12 +356,10 @@ void World::ProcessLastPart()
 				m_lastCellCount = m_cellCount;
 			}
 			
-			// Get offset relative to the beginning
-			long m_difference = std::distance(this->cells.begin(), m_iterator);
 			// Calculate what number to move (negative or positive) to get to the m_nextPosition value
-			long m_toMove = 0L;
-			m_toMove = m_nextPosition - m_difference;
-			
+			// Needs to be a signed number as m_toMove can go into the negative (for going backwards)
+			long long m_difference = std::distance(this->cells.begin(), m_iterator);
+			long long m_toMove = m_nextPosition - m_difference;
 			std::advance(m_iterator, m_toMove);
 			
 			while (m_iterator != m_sectionEnd)
