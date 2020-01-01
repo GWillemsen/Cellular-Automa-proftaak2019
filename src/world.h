@@ -53,6 +53,8 @@ private:
 
 	// Lock for when you need to edit the cells
 	std::shared_mutex cellsEditLock;
+
+	typedef std::map<std::pair<long, long>, Cell*>::size_type mapSizeType;
 public:
 	std::map<std::pair<long, long>, Cell*> cells;
 

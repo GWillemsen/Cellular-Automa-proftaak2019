@@ -50,14 +50,12 @@ void World::InitializeThreads()
 		this->totalThreads -= 2;
 	
 	// Calculate the number of thread that are extra (those will be created in the for loop below).
-	this->totalThreads--;
-	for (unsigned int m_threadId = 0; m_threadId < this->totalThreads; m_threadId++)
+	for (unsigned int m_threadId = 0; m_threadId < this->totalThreads - 1; m_threadId++)
 	{
 		this->simUpdaters.emplace_back(std::thread(&World::ProcessPartContinuesly, this, m_threadId, this->totalThreads));
 		this->threadComboData.emplace(make_pair(m_threadId, new ThreadCombo()));
 	}
 	// Set the total thread count to the number that we will actually be using.
-	this->totalThreads++;
 	this->lastPartProcessor = std::thread(&World::ProcessLastPart, this);
 
 	// Start the timer
@@ -234,10 +232,10 @@ void World::UpdateSimulationWithSingleGeneration()
 	// Process the calculated results
 	for (auto m_cellPair : this->cells)
 	{
-		if ((m_cellPair.second->atomic_neighborCount.load() == 1 ||
-			 m_cellPair.second->atomic_neighborCount.load() == 2) &&
-			m_cellPair.second->cellState != Background &&
-			m_cellPair.second->cellState != Tail)
+		unsigned char m_neighborCount = m_cellPair.second->atomic_neighborCount.load();
+		if ((m_neighborCount == 1 || m_neighborCount == 2) &&
+			 m_cellPair.second->cellState != Background &&
+			 m_cellPair.second->cellState != Tail)
 		{
 			m_cellPair.second->decayState = Head;
 		}
@@ -248,24 +246,21 @@ void World::UpdateSimulationWithSingleGeneration()
 
 void World::ProcessPartContinuesly(unsigned int a_threadId, unsigned int a_threadCount)
 {
-	using std::pair;
 	unsigned long m_nextToGenerateGeneration = 1;
 	std::unique_lock<std::mutex> m_lk(this->currentGenerationLock);
 	auto m_iterator = this->cells.begin();
 	auto m_sectionEnd = this->cells.end();
-	auto m_lastEndPosition = this->cells.size();
-	long m_lastIteratorPos = 0;
-
+	mapSizeType  m_lastCellCount = this->cells.size();
 
 	while (!this->cancelSimulation)
 	{
 		// lk is only locked when the predicate is checked and if it returns true. 
 		// otherwise it will unlock lk allowing other threads to check the condition as well
 		// the whole loop set, see -> https://stackoverflow.com/a/2763749
-
 		this->nextUpdateCv.wait(m_lk, [this, m_nextToGenerateGeneration] {
 			return m_nextToGenerateGeneration <= this->currentGeneration || this->cancelSimulation;
 		});
+
 		// unlock lk. we only needed the lock to check the currentGeneration.
 		m_lk.unlock();
 		if (!this->cancelSimulation)
@@ -273,22 +268,25 @@ void World::ProcessPartContinuesly(unsigned int a_threadId, unsigned int a_threa
 			// Lock editing to the map
 			this->cellsEditLock.lock_shared();
 
-			long m_cellCount = this->cells.size();
-			long m_perThread = m_cellCount / a_threadCount;
-			long m_nextPosition = m_perThread * a_threadId;
-			// Get offset relative to the beginning
-			long m_difference = std::distance(this->cells.begin(), m_iterator);
-			// Calculate what number to move (negative or positive) to get to the m_nextPosition value
-			long m_toMove = m_nextPosition - m_difference;
-			std::advance(m_iterator, m_toMove);
-
+			mapSizeType m_cellCount = this->cells.size();
+			mapSizeType m_perThread = m_cellCount / a_threadCount;
+			mapSizeType m_nextPosition = m_perThread * a_threadId;
+			
 			// Update the ending of the end processor
-			if (m_nextPosition + m_perThread != m_lastEndPosition)
+			if (m_cellCount != m_lastCellCount)
 			{
+				m_iterator = this->cells.begin();
+				m_lastCellCount = m_cellCount;
+				
 				m_sectionEnd = this->cells.begin();
 				std::advance(m_sectionEnd, m_nextPosition + m_perThread);
-				m_lastEndPosition = m_nextPosition + m_perThread;
 			}
+
+			// Calculate what number to move (negative or positive) to get to the m_nextPosition value
+			// Needs to be a signed number as m_toMove can go into the negative (for going backwards)
+			long long m_difference = std::distance(this->cells.begin(), m_iterator);
+			long long m_toMove = m_nextPosition - m_difference;
+			std::advance(m_iterator, m_toMove);
 
 			while (m_iterator != m_sectionEnd)
 			{
@@ -328,9 +326,8 @@ void World::ProcessLastPart()
 	std::unique_lock<std::mutex> m_lk(this->currentGenerationLock);
 	auto m_iterator = this->cells.begin();
 	auto m_sectionEnd = this->cells.end();
-	auto m_lastCellCount = this->cells.size();
+	mapSizeType  m_lastCellCount = this->cells.size();
 	long m_lastIteratorPos = 0;
-
 
 	while (!this->cancelSimulation)
 	{
@@ -345,22 +342,26 @@ void World::ProcessLastPart()
 		{
 			// Lock editing to the map
 			this->cellsEditLock.lock_shared();
-			long m_cellCount = this->cells.size();
-			long m_perThread = m_cellCount / this->totalThreads;
-			long m_nextPosition = m_perThread * (this->totalThreads - 1);
-			// Get offset relative to the beginning
-			long m_difference = std::distance(this->cells.begin(), m_iterator);
-			// Calculate what number to move (negative or positive) to get to the m_nextPosition value
-			long m_toMove = m_nextPosition - m_difference;
-			std::advance(m_iterator, m_toMove);
-
+			
+			//unsigned long long -> specified by c++0x standard to be at least a 64 bits integer.
+			mapSizeType m_cellCount = this->cells.size();
+			mapSizeType m_perThread = m_cellCount / this->totalThreads;
+			mapSizeType m_nextPosition = m_perThread * (this->totalThreads - 1);
+			
 			// Update the ending of the end processor
 			if (m_cellCount != m_lastCellCount)
 			{
 				m_sectionEnd = this->cells.end();
-				m_lastCellCount = m_nextPosition + m_perThread;
+				m_iterator = this->cells.begin();
+				m_lastCellCount = m_cellCount;
 			}
-
+			
+			// Calculate what number to move (negative or positive) to get to the m_nextPosition value
+			// Needs to be a signed number as m_toMove can go into the negative (for going backwards)
+			long long m_difference = std::distance(this->cells.begin(), m_iterator);
+			long long m_toMove = m_nextPosition - m_difference;
+			std::advance(m_iterator, m_toMove);
+			
 			while (m_iterator != m_sectionEnd)
 			{
 				// An iterator item can be accessed like an pointer, you have to dereference it first.
@@ -524,8 +525,10 @@ bool World::InsertCellAt(long a_cellX, long a_cellY, CellState a_state)
 		this->cellsEditLock.unlock_shared();
 		return false;
 	}
-	this->cells.insert(std::make_pair(std::make_pair(a_cellX, a_cellY), new Cell(a_cellX, a_cellY, a_state)));
 	this->cellsEditLock.unlock_shared();
+	this->cellsEditLock.lock();
+	this->cells.insert(std::make_pair(std::make_pair(a_cellX, a_cellY), new Cell(a_cellX, a_cellY, a_state)));
+	this->cellsEditLock.unlock();
 	return true;
 }
 
@@ -540,8 +543,10 @@ bool World::UpdateCellState(long a_cellX, long a_cellY, std::function<bool (Cell
 	}
 	else
 	{
-		bool m_result = a_updater(m_found->second);
 		this->cellsEditLock.unlock_shared();
+		this->cellsEditLock.lock();
+		bool m_result = a_updater(m_found->second);
+		this->cellsEditLock.unlock();
 		return m_result;
 	}
 }
