@@ -115,7 +115,7 @@ void SimulatorPage::InitImGui()
 	ImGui::CreateContext();
 
 	this->imguiIO = ImGui::GetIO(); (void)this->imguiIO;
-	
+
 	// Enable keyboard input
 	this->imguiIO.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
 
@@ -149,7 +149,7 @@ void SimulatorPage::RenderImGui()
 	ImGui_ImplOpenGL3_NewFrame();
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
-
+	
 	{
 		ImGui::BeginMainMenuBar();
 		ImGui::MenuItem("File", NULL, &this->fileMenuItemFileIsClicked);
@@ -158,7 +158,7 @@ void SimulatorPage::RenderImGui()
 
 	ImGui::Render();
 
-	ImGui::EndFrame();
+	ImGui::EndFrame();	
 
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
@@ -174,20 +174,48 @@ void SimulatorPage::HandleInput(GLFWwindow* a_window)
 	if (glfwGetKey(a_window, GLFW_KEY_P) == GLFW_PRESS)
 		this->worldCells.PauzeSimulation();
 
+		static bool m_lastPressedKey1 = false;
+		static bool m_lastPressedKey2 = false;
+	if (glfwGetKey(a_window, GLFW_KEY_2) == GLFW_PRESS)
+	{
+		if (!m_lastPressedKey2)
+		{
+			float m_speed = this->worldCells.GetTargetSpeed();
+			m_speed += 2.0f;
+			this->worldCells.SetTargetSpeed(m_speed);
+			m_lastPressedKey2 = true;
+		}
+	}
+	else 
+	{
+		m_lastPressedKey2 = false;
+	}
+
 	if (glfwGetKey(a_window, GLFW_KEY_1) == GLFW_PRESS)
 	{
-		float m_speed = this->worldCells.GetTargetSpeed();
-		this->worldCells.SetTargetSpeed(m_speed + 2.0f);
+		if (!m_lastPressedKey1)
+		{
+			float m_speed = this->worldCells.GetTargetSpeed();
+			if (m_speed - 0.1f < 0)
+				m_speed = 0.01f;
+			else if (m_speed - 2.0f >= 1.0f)
+				m_speed -= 2.0f;
+			else
+				m_speed -= 0.1f;
+			this->worldCells.SetTargetSpeed(m_speed);
+			m_lastPressedKey1 = true;
+		}
 	}
-	if (glfwGetKey(a_window, GLFW_KEY_0) == GLFW_PRESS)
+	else
 	{
-		float m_speed = this->worldCells.GetTargetSpeed();
-		this->worldCells.SetTargetSpeed(m_speed - 2.0f);
+		m_lastPressedKey1 = false;
 	}
 }
 
 void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_posY)
 {
+	if (this->imguiIO.WantCaptureMouse)
+		return;
 	// Calculate in which cell the mouse cursor is located
 	long m_curCellXHovered = (((long)(this->gridLineSizeInPx + a_posX) / this->cellSizeInPx));
 	long m_curCellYHovered = (((long)(this->gridLineSizeInPx + a_posY) / this->cellSizeInPx));
@@ -195,7 +223,7 @@ void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_pos
 	if (this->curCellHoveredX != m_curCellXHovered)
 	{
 		this->curCellHoveredX = m_curCellXHovered - this->scrollOffsetX;
-		std::cout << "x" << this->curCellHoveredX << "y" << this->curCellHoveredX << std::endl;
+		std::cout << "x" << this->curCellHoveredX << "y" << this->curCellHoveredY << std::endl;
 	}
 
 	if (this->curCellHoveredY != m_curCellYHovered)
@@ -261,6 +289,8 @@ void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_pos
 
 void SimulatorPage::MouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods)
 {
+	if (this->imguiIO.WantCaptureMouse)
+		return;
 	// Left mouse button press
 	if (a_button == 0 && a_action == 1)
 	{

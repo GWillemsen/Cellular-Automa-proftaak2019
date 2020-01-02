@@ -429,13 +429,16 @@ void World::SetTargetSpeed(float a_targetSpeed)
 
 void World::TimerThread()
 {
+	const float m_defaultDurationOfOneFrameInMs = 1000.0;
 	bool m_stop = false;
+	std::chrono::time_point<std::chrono::steady_clock> m_lastUpdatePoint = std::chrono::steady_clock::now();
+	bool m_fromTimeChangeEvent = false;
 	while (!m_stop)
 	{
 		// Calculate the new time to wait for the next update
 		this->simCalcUpdateLock.lock();
 		float m_targetSpeed = this->targetSimulationSpeed;
-		long m_int = (long)(1000.0 / (double)m_targetSpeed);
+		long m_interval = (long)(m_defaultDurationOfOneFrameInMs / m_targetSpeed);
 		auto m_nowTime = std::chrono::steady_clock::now();
 		bool m_pauzed = this->pauzeSimulation;
 		this->simCalcUpdateLock.unlock();
@@ -443,22 +446,33 @@ void World::TimerThread()
 		// Check if we should update the simulation (based on the paused state)
 		if (m_pauzed)
 		{
-			m_int = 1000; // just force it to a interval of 1s
+			m_interval = 1000; // just force it to a interval of 1s
 		}
-		else 
+		else
 		{
-			clock_t m_starTime = clock();
-			this->UpdateSimulationWithSingleGeneration();
-			clock_t m_endTime = clock();
-			float m_differenceInMs = (m_endTime - m_starTime) / (CLOCKS_PER_SEC / 1000.0f);
-			this->lastUpdateDuration = m_differenceInMs;
+			bool m_allowUpdate = true;
+			if (m_fromTimeChangeEvent)
+			{
+				if (m_lastUpdatePoint + std::chrono::milliseconds(m_interval) > std::chrono::steady_clock::now())
+				{
+					m_allowUpdate = false;
+				}
+			}
+			if (m_allowUpdate)
+			{
+				clock_t m_starTime = clock();
+				this->UpdateSimulationWithSingleGeneration();
+				clock_t m_endTime = clock();
+				float m_differenceInMs = (m_endTime - m_starTime) / (CLOCKS_PER_SEC / 1000.0f);
+				this->lastUpdateDuration = m_differenceInMs;
+			}
 		}
 
 		// Keep looping until we are suppose to wake up. 
 		// 1) That is either a the wait time has passed. 
 		// 2) A new target speed has been set and we should start updating at the new speed.
 		// 3) Or we are to cancel the simulation
-		auto m_nextWake = m_nowTime + std::chrono::milliseconds(m_int);
+		auto m_nextWake = m_nowTime + std::chrono::milliseconds(m_interval);
 		bool m_nextRun = false;
 		while (!m_nextRun)
 		{
@@ -467,8 +481,10 @@ void World::TimerThread()
 			// wait for either the simulation to be canceled or the speed to be changed
 			// returns false if timeout has expired and pred() is still false. otherwise it will return true
 			bool m_waitResult = this->simCalcUpdate.wait_until(m_lk, m_nextWake, [this, m_targetSpeed] {
-				return this->cancelSimulation || this->targetSimulationSpeed != m_targetSpeed;
+  				return this->cancelSimulation || this->targetSimulationSpeed != m_targetSpeed;
 			});
+			m_lk.unlock();
+			m_fromTimeChangeEvent = false;
 			if (m_waitResult)
 			{
 				if (this->cancelSimulation)
@@ -478,18 +494,7 @@ void World::TimerThread()
 				}
 				else
 				{
-					// Calculate the new time to wait, and set to wait if we need to, otherwise start the next update frame
-					/*m_int = (long)(1000.0 * this->targetSimulationSpeed);
-					auto m_newNextWake = m_nowTime + std::chrono::milliseconds(m_int);
-					auto m_now = std::chrono::steady_clock::now() - std::chrono::milliseconds(200);
-					if (m_newNextWake < m_now)
-					{
-						m_nextRun = true;
-					}
-					else
-					{
-						m_nextWake = m_newNextWake;
-					}*/
+					m_fromTimeChangeEvent = true;
 					m_nextRun = true;
 				}
 			}
@@ -497,7 +502,6 @@ void World::TimerThread()
 			{
 				m_nextRun = true;
 			}
-			m_lk.unlock();
 		}
 	}
 }
@@ -554,4 +558,54 @@ bool World::UpdateCellState(long a_cellX, long a_cellY, std::function<bool (Cell
 void World::LoadBlockAt(PremadeBlock a_premadeBlock, long a_cellX, long a_cellY)
 {
 	// Loads the content of a premade block at a specific grid coordinate
+}
+
+void World::InViewport(std::vector<Cell*>* a_output, long a_x, long a_y, unsigned int a_width, unsigned int a_height)
+{
+	long m_preCalcSize = (a_width * a_height) / 4;
+	if (m_preCalcSize > 20)
+		m_preCalcSize = 20;
+	a_output->resize(a_output->size() + m_preCalcSize);
+
+	this->cellsEditLock.lock_shared();
+	//std::map<std::pair<long, long>, Cell*>
+	std::map<std::pair<long, long>, Cell*>::iterator m_iterator = this->cells.begin();
+	std::map<std::pair<long, long>, Cell*>::iterator m_end = this->cells.end();
+	long m_endX = a_width + a_x;
+	long m_endY = a_height + a_y;
+	while (m_iterator != m_end)
+	{
+		Cell* m_cell = m_iterator->second;
+		if (m_cell->x > a_x&& m_cell->y > a_y)
+		{
+			if (m_cell->x < m_endX)
+			{
+				if (m_cell->y < m_endY)
+				{
+					a_output->push_back(m_cell);
+				}
+			}
+		}
+		std::advance(m_iterator, 1);
+	}
+	this->cellsEditLock.unlock_shared();
+}
+
+bool World::TryDeleteCell(long a_cellX, long a_cellY)
+{
+	this->cellsEditLock.lock_shared();
+	auto m_found = this->cells.find(std::make_pair(a_cellX, a_cellY));
+	if (m_found == this->cells.end())
+	{
+		this->cellsEditLock.unlock_shared();
+		return false;
+	}
+	else
+	{
+		this->cellsEditLock.unlock_shared();
+		this->cellsEditLock.lock();
+		this->cells.erase(m_found);
+		this->cellsEditLock.unlock();
+		return true;
+	}
 }

@@ -98,6 +98,9 @@ public:
 	bool UpdateCellState(long a_cellX, long a_cellY, std::function<bool (Cell*)> a_updater);
 	bool InsertCellAt(long a_cellX, long a_cellY, CellState a_state);
 	void LoadBlockAt(PremadeBlock a_premadeBlock, long a_cellX, long a_cellY);
+	void InViewport(std::vector<Cell*>* a_output, long a_x, long a_y, unsigned int a_width, unsigned int a_height);
+	bool TryDeleteCell(long a_cellX, long a_cellY);
+
 };
 
 #endif // !__WORLD__

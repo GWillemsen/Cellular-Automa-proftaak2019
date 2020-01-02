@@ -114,9 +114,13 @@ GLFWwindow* CreateWindow()
 	glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
 	//glfwWindowHint(GLFW_MAXIMIZED, GLFW_FALSE);
 	glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
-
-	//GLFWwindow* window = glfwCreateWindow(mode->width, mode->height, "LearnOpenGL", monitor, NULL);
+	
+	//GLFWwindow* window = glfwCreateWindow(800, 600, "LearnOpenGL", NULL, NULL);
 	GLFWwindow* window = glfwCreateWindow(mode->width, mode->height, "LearnOpenGL", monitor, NULL);
+
+	// Get the resulting screen width & height
+	glfwGetWindowSize(window, &screenWidth, &screenHeight);
+
 	// Make sure that the window is created.
 	if (window == NULL)
 	{
