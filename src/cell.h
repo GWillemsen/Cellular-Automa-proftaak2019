@@ -10,7 +10,7 @@
 #ifndef __CELL__
 #define __CELL__
 
-enum CellState
+enum CellState : int
 {
 	Conductor = 0,
 	Head = 1,

@@ -521,7 +521,7 @@ Cell* World::GetCopyOfCellAt(long a_cellX, long a_cellY)
 	}
 }
 
-bool World::InsertCellAt(long a_cellX, long a_cellY, CellState a_state)
+bool World::TryInsertCellAt(long a_cellX, long a_cellY, CellState a_state)
 {
 	this->cellsEditLock.lock_shared();
 	if (this->cells.find(std::make_pair(a_cellX, a_cellY)) != this->cells.end())

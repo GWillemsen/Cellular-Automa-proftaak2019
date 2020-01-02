@@ -99,6 +99,11 @@ private:
 	// GUI (Dear ImGUI)
 	bool fileMenuItemFileIsClicked = false;
 
+	// The cell state that the mouse will draw in
+	CellState cellDrawState = CellState::Conductor;
+	char** cellDrawStateNames = new char* [4]{ "Conductor", "Head", "Tail", "Background" };;
+	int selectedCellDrawName = 0;
+	
 public:
 	SimulatorPage(GLFWwindow* a_window);
 	Page *Run();

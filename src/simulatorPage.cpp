@@ -156,6 +156,15 @@ void SimulatorPage::RenderImGui()
 		ImGui::EndMainMenuBar();
 	}
 
+	ImGui::Begin("Brush");
+
+	if (ImGui::ListBox("Brush:", &this->selectedCellDrawName, this->cellDrawStateNames, 5))
+	{
+		this->cellDrawState = (CellState)this->selectedCellDrawName;
+	}
+
+	ImGui::End();
+
 	ImGui::Render();
 
 	ImGui::EndFrame();	
@@ -214,36 +223,35 @@ void SimulatorPage::HandleInput(GLFWwindow* a_window)
 
 void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_posY)
 {
-	if (this->imguiIO.WantCaptureMouse)
+    if (this->imguiIO.WantCaptureMouse)
 		return;
-	// Calculate in which cell the mouse cursor is located
 	long m_curCellXHovered = (((long)(this->gridLineSizeInPx + a_posX) / this->cellSizeInPx));
 	long m_curCellYHovered = (((long)(this->gridLineSizeInPx + a_posY) / this->cellSizeInPx));
+	
+	static int m_lastCellX = 0;
+	static int m_lastCellY = 0;
+	static int m_lastMouseX = 0;
+	static int m_lastMouseY = 0;
 
+	// Calculate in which cell the mouse cursor is located
 	if (this->curCellHoveredX != m_curCellXHovered)
 	{
 		this->curCellHoveredX = m_curCellXHovered - this->scrollOffsetX;
-		std::cout << "x" << this->curCellHoveredX << "y" << this->curCellHoveredY << std::endl;
+		std::cout << "x" << this->curCellHoveredX << " y" << this->curCellHoveredX << std::endl;
 	}
 
 	if (this->curCellHoveredY != m_curCellYHovered)
 	{
 		this->curCellHoveredY = m_curCellYHovered - this->scrollOffsetY;
-		std::cout << "x" << this->curCellHoveredX << "y" << this->curCellHoveredY << std::endl;
+		std::cout << "x" << this->curCellHoveredX << " y" << this->curCellHoveredY << std::endl;
 	}
-
-	static int m_lastCellX = 0;
-	static int m_lastCellY = 0;
-	  
+  
 	// Add / remove cells while the mouse is being dragged around
 	if (this->leftMouseButtonIsDown)
 	{
 		if (m_lastCellX != m_curCellXHovered || m_lastCellY != m_curCellYHovered)
 		{
 			this->AddCellToWorld(true);
-
-			m_lastCellX = m_curCellXHovered;
-			m_lastCellY = m_curCellYHovered;
 		}
 	}
 	else if (this->rightMouseButtonIsDown)
@@ -251,16 +259,10 @@ void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_pos
 		if (m_lastCellX != m_curCellXHovered || m_lastCellY != m_curCellYHovered)
 		{
 			this->RemoveCellFromWorld();
-
-			m_lastCellX = m_curCellXHovered;
-			m_lastCellY = m_curCellYHovered;
 		}
 	}
 
-	// Scrolling
-	static int m_lastMouseX = 0;
-	static int m_lastMouseY = 0;
-	
+	// Scrolling	
 	if (this->scrollWheelButtonIsDown)
 	{
 		long m_scrollDifferenceX = a_posX - m_lastMouseX;
@@ -278,19 +280,18 @@ void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_pos
 			else if (m_scrollDifferenceY < 0)
 				this->scrollOffsetY -= 1;
 		}
-
-		m_lastMouseX = a_posX;
-		m_lastMouseY = a_posY;
-
-		m_lastCellX = m_curCellXHovered;
-		m_lastCellY = m_curCellYHovered;
 	}
+
+	// These should be on the bottom as we use them to check if we changed something from frame to frame.
+	// (and therefor should always update at the end of each frame).
+	m_lastMouseX = a_posX;
+	m_lastMouseY = a_posY;
+	m_lastCellX = m_curCellXHovered;
+	m_lastCellY = m_curCellYHovered;
 }
 
 void SimulatorPage::MouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods)
 {
-	if (this->imguiIO.WantCaptureMouse)
-		return;
 	// Left mouse button press
 	if (a_button == 0 && a_action == 1)
 	{
@@ -402,40 +403,27 @@ void SimulatorPage::RenderGrid()
 void SimulatorPage::AddCellToWorld(bool a_mouseIsBeingDragged)
 {
 	auto m_worldCell = this->worldCells.cells.find(std::make_pair(this->curCellHoveredX, this->curCellHoveredY));
+	CellState m_cellState = this->cellDrawState; // Gets manipulated based on logic
 
-	CellState m_cellState = CellState::Conductor; // Gets manipulated based on logic
-
-	// Insert a new cell
-	if (m_worldCell == this->worldCells.cells.end())
+    if (m_worldCell == this->worldCells.cells.end())
 	{
 		// No cells found, insert the new cell into the world
-		this->worldCells.InsertCellAt(this->curCellHoveredX, this->curCellHoveredY, m_cellState);
-
-		// Find the newly added worldcell and initialize the rendering
-		auto m_newWorldCell = this->worldCells.cells.find(std::make_pair(this->curCellHoveredX, this->curCellHoveredY));
-		
-		if (m_newWorldCell != this->worldCells.cells.end())
+		if (this->worldCells.TryInsertCellAt(this->curCellHoveredX, this->curCellHoveredY, m_cellState))
+		{
+			// Find the newly added world cell and initialize the rendering
+			auto m_newWorldCell = this->worldCells.cells.find(std::make_pair(this->curCellHoveredX, this->curCellHoveredY));
 			m_newWorldCell->second->InitRender(this->gridCellShader, this->cellVaoBuffer);
+		}
 	}
-	// Change cell state
 	else
 	{
-		// Only cycle through the state by clicking
-		if (!a_mouseIsBeingDragged)
-		{
-			// Update to the new cell state
-			if (m_cellState != m_worldCell->second->cellState)
-				m_cellState = m_worldCell->second->cellState;
-
-			if (((CellState)(int)m_cellState + 1) != CellState::Background)
-				m_cellState = (CellState)((int)m_cellState + 1);
-			// Reset the cellstate back to Conductor when it is being set to the background state
-			else
-				m_cellState = CellState::Conductor;
-		}
-
-		m_worldCell->second->cellState = m_cellState;
+		// Change cell state
+		if (m_cellState == Background)
+			this->RemoveCellFromWorld();
+		else
+			m_worldCell->second->cellState = m_cellState;
 	}
+
 }
 
 void SimulatorPage::RemoveCellFromWorld()
