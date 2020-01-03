@@ -65,6 +65,7 @@ public:
 
 	std::string description;
 	std::string author;
+	std::string name;
 
 private:
 	void LoadFile();
@@ -74,6 +75,7 @@ private:
 	void ProcessLastPart();
 	void TimerThread();
 	void World::InitializeThreads();
+	coordinatePart ParseCoordinatePartFromString(char* a_input, std::string::size_type a_from);
 public:
 	World();
 	// Copy constructor
@@ -83,7 +85,7 @@ public:
 	
 	~World();
 
-	void Save(std::string a_worldName);
+	void Save();
 	void Open(std::string a_filePath);
 	void SaveAsTemplate(std::string a_worldName);
 
