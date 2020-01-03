@@ -199,7 +199,7 @@ void World::UpdateSimulationWithSingleGeneration()
 	while (m_begining != m_ending)
 	{
 		ThreadCombo* m_threadData = m_begining->second;
-		unsigned long m_lastGenerationValue = m_threadData->current_generation;
+		generationType m_lastGenerationValue = m_threadData->current_generation;
 		if (m_lastGenerationValue != this->currentGeneration)
 		{
 			std::unique_lock<std::mutex> m_locker(m_threadData->lock);
@@ -246,7 +246,7 @@ void World::UpdateSimulationWithSingleGeneration()
 
 void World::ProcessPartContinuesly(unsigned int a_threadId, unsigned int a_threadCount)
 {
-	unsigned long m_nextToGenerateGeneration = 1;
+	generationType m_nextToGenerateGeneration = 1;
 	std::unique_lock<std::mutex> m_lk(this->currentGenerationLock);
 	auto m_iterator = this->cells.begin();
 	auto m_sectionEnd = this->cells.end();
@@ -322,7 +322,7 @@ void World::ProcessPartContinuesly(unsigned int a_threadId, unsigned int a_threa
 
 void World::ProcessLastPart()
 {
-	unsigned long m_nextToGenerateGeneration = 1;
+	generationType m_nextToGenerateGeneration = 1;
 	std::unique_lock<std::mutex> m_lk(this->currentGenerationLock);
 	auto m_iterator = this->cells.begin();
 	auto m_sectionEnd = this->cells.end();
@@ -393,9 +393,9 @@ void World::ProcessLastPart()
 	}
 }
 
-void World::IncrementNeighbors(long a_x, long a_y)
+void World::IncrementNeighbors(coordinatePart a_x, coordinatePart a_y)
 {
-	std::pair<long, long> m_toFindPair;
+	std::pair<coordinatePart, coordinatePart> m_toFindPair;
 	auto m_end = this->cells.end();
 
 	// run through the Moore neighbors
@@ -506,7 +506,7 @@ void World::TimerThread()
 	}
 }
 
-Cell* World::GetCopyOfCellAt(long a_cellX, long a_cellY)
+Cell* World::GetCopyOfCellAt(coordinatePart a_cellX, coordinatePart a_cellY)
 {
 	std::lock_guard<std::shared_mutex> m_lk(this->cellsEditLock);
 	// Retrieves the pointer of a cell at a specific grid coordinate
@@ -521,7 +521,7 @@ Cell* World::GetCopyOfCellAt(long a_cellX, long a_cellY)
 	}
 }
 
-bool World::TryInsertCellAt(long a_cellX, long a_cellY, CellState a_state)
+bool World::TryInsertCellAt(coordinatePart a_cellX, coordinatePart a_cellY, CellState a_state)
 {
 	this->cellsEditLock.lock_shared();
 	if (this->cells.find(std::make_pair(a_cellX, a_cellY)) != this->cells.end())
@@ -536,7 +536,7 @@ bool World::TryInsertCellAt(long a_cellX, long a_cellY, CellState a_state)
 	return true;
 }
 
-bool World::UpdateCellState(long a_cellX, long a_cellY, std::function<bool (Cell*)> a_updater)
+bool World::UpdateCellState(coordinatePart a_cellX, coordinatePart a_cellY, std::function<bool (Cell*)> a_updater)
 {
 	this->cellsEditLock.lock_shared();
 	auto m_found = this->cells.find(std::make_pair(a_cellX, a_cellY));
@@ -555,12 +555,12 @@ bool World::UpdateCellState(long a_cellX, long a_cellY, std::function<bool (Cell
 	}
 }
 
-void World::LoadBlockAt(PremadeBlock a_premadeBlock, long a_cellX, long a_cellY)
+void World::LoadBlockAt(PremadeBlock a_premadeBlock, coordinatePart a_cellX, coordinatePart a_cellY)
 {
 	// Loads the content of a premade block at a specific grid coordinate
 }
 
-void World::InViewport(std::vector<Cell*>* a_output, long a_x, long a_y, unsigned int a_width, unsigned int a_height)
+void World::InViewport(std::vector<Cell*>* a_output, coordinatePart a_x, coordinatePart a_y, unsigned int a_width, unsigned int a_height)
 {
 	long m_preCalcSize = (a_width * a_height) / 4;
 	if (m_preCalcSize > 20)
@@ -568,11 +568,10 @@ void World::InViewport(std::vector<Cell*>* a_output, long a_x, long a_y, unsigne
 	a_output->resize(a_output->size() + m_preCalcSize);
 
 	this->cellsEditLock.lock_shared();
-	//std::map<std::pair<long, long>, Cell*>
-	std::map<std::pair<long, long>, Cell*>::iterator m_iterator = this->cells.begin();
-	std::map<std::pair<long, long>, Cell*>::iterator m_end = this->cells.end();
-	long m_endX = a_width + a_x;
-	long m_endY = a_height + a_y;
+	auto m_iterator = this->cells.begin();
+	auto m_end = this->cells.end();
+	coordinatePart m_endX = a_width + a_x;
+	coordinatePart m_endY = a_height + a_y;
 	while (m_iterator != m_end)
 	{
 		Cell* m_cell = m_iterator->second;
@@ -591,7 +590,7 @@ void World::InViewport(std::vector<Cell*>* a_output, long a_x, long a_y, unsigne
 	this->cellsEditLock.unlock_shared();
 }
 
-bool World::TryDeleteCell(long a_cellX, long a_cellY)
+bool World::TryDeleteCell(coordinatePart a_cellX, coordinatePart a_cellY)
 {
 	this->cellsEditLock.lock_shared();
 	auto m_found = this->cells.find(std::make_pair(a_cellX, a_cellY));

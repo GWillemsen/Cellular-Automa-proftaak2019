@@ -8,7 +8,7 @@
 #include "cell.h"
 #include "premadeBlock.h"
 #include "config.h"
-#include "cell.h"
+#include "coordinateType.h"
 
 #ifndef __WORLD__
 #define __WORLD__
@@ -17,11 +17,13 @@ class World
 {
 
 private:
+	typedef unsigned long long generationType;
+	typedef std::map<std::pair<coordinatePart, coordinatePart>, Cell*>::size_type mapSizeType;
 	class ThreadCombo {
 		public:
 			std::mutex lock;
 			std::condition_variable cv;
-			unsigned long current_generation;
+			generationType current_generation;
 			ThreadCombo()
 			{
 				this->current_generation = 0;
@@ -40,12 +42,12 @@ private:
 
 	std::vector<std::thread> simUpdaters;
 	std::condition_variable nextUpdateCv;
-	std::map<int, ThreadCombo*> threadComboData;
+	std::map<unsigned int, ThreadCombo*> threadComboData;
 	unsigned int totalThreads;
 
 	std::mutex lastPartLock;
 	std::condition_variable lastPartGenerationCv;
-	unsigned long lastPartGeneration;
+	generationType lastPartGeneration;
 	// The thread that processes the last parts of the cells list
 	std::thread lastPartProcessor;
 	// Simulation speed in Hz
@@ -54,11 +56,10 @@ private:
 	// Lock for when you need to edit the cells
 	std::shared_mutex cellsEditLock;
 
-	typedef std::map<std::pair<long, long>, Cell*>::size_type mapSizeType;
 public:
-	std::map<std::pair<long, long>, Cell*> cells;
+	std::map<std::pair<coordinatePart, coordinatePart>, Cell*> cells;
 
-	unsigned long currentGeneration = 0;
+	generationType currentGeneration = 0;
 	float lastUpdateDuration = 0;
 
 
@@ -68,8 +69,8 @@ public:
 private:
 	void LoadFile();
 	void EmptyWorld();
-	void IncrementNeighbors(long a_x, long a_y);
-	void ProcessPartContinuesly(unsigned int  a_threadId, unsigned int a_maxThreads);
+	void IncrementNeighbors(coordinatePart a_x, coordinatePart a_y);
+	void ProcessPartContinuesly(unsigned int a_threadId, unsigned int a_maxThreads);
 	void ProcessLastPart();
 	void TimerThread();
 	void World::InitializeThreads();
@@ -94,12 +95,12 @@ public:
 	void SetTargetSpeed(float a_targetSpeed);
 	float GetTargetSpeed() { return this->targetSimulationSpeed; };
 
-	Cell* GetCopyOfCellAt(long a_cellX, long a_cellY);
-	bool UpdateCellState(long a_cellX, long a_cellY, std::function<bool (Cell*)> a_updater);
-	bool TryInsertCellAt(long a_cellX, long a_cellY, CellState a_state);
-	void LoadBlockAt(PremadeBlock a_premadeBlock, long a_cellX, long a_cellY);
-	void InViewport(std::vector<Cell*>* a_output, long a_x, long a_y, unsigned int a_width, unsigned int a_height);
-	bool TryDeleteCell(long a_cellX, long a_cellY);
+	Cell* GetCopyOfCellAt(coordinatePart a_cellX, coordinatePart a_cellY);
+	bool UpdateCellState(coordinatePart a_cellX, coordinatePart a_cellY, std::function<bool (Cell*)> a_updater);
+	bool TryInsertCellAt(coordinatePart a_cellX, coordinatePart a_cellY, CellState a_state);
+	void LoadBlockAt(PremadeBlock a_premadeBlock, coordinatePart a_cellX, coordinatePart a_cellY);
+	void InViewport(std::vector<Cell*>* a_output, coordinatePart a_x, coordinatePart a_y, unsigned int a_width, unsigned int a_height);
+	bool TryDeleteCell(coordinatePart a_cellX, coordinatePart a_cellY);
 
 };
 

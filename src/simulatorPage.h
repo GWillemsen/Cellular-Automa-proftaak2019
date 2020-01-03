@@ -23,6 +23,7 @@
 #include "cell.h"
 #include "shader.h"
 #include "config.h"
+#include "premadeBlock.h"
 
 #ifndef __SIMULATORPAGE__
 #define __SIMULATORPAGE__

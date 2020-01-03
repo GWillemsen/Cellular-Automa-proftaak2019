@@ -158,7 +158,7 @@ void SimulatorPage::RenderImGui()
 
 	ImGui::Begin("Brush");
 
-	if (ImGui::ListBox("Brush:", &this->selectedCellDrawName, this->cellDrawStateNames, 5))
+	if (ImGui::ListBox("Brush:", &this->selectedCellDrawName, this->cellDrawStateNames, 4))
 	{
 		this->cellDrawState = (CellState)this->selectedCellDrawName;
 	}
@@ -183,8 +183,8 @@ void SimulatorPage::HandleInput(GLFWwindow* a_window)
 	if (glfwGetKey(a_window, GLFW_KEY_P) == GLFW_PRESS)
 		this->worldCells.PauzeSimulation();
 
-		static bool m_lastPressedKey1 = false;
-		static bool m_lastPressedKey2 = false;
+	static bool m_lastPressedKey1 = false;
+	static bool m_lastPressedKey2 = false;
 	if (glfwGetKey(a_window, GLFW_KEY_2) == GLFW_PRESS)
 	{
 		if (!m_lastPressedKey2)
@@ -228,10 +228,10 @@ void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_pos
 	long m_curCellXHovered = (((long)(this->gridLineSizeInPx + a_posX) / this->cellSizeInPx));
 	long m_curCellYHovered = (((long)(this->gridLineSizeInPx + a_posY) / this->cellSizeInPx));
 	
-	static int m_lastCellX = 0;
-	static int m_lastCellY = 0;
-	static int m_lastMouseX = 0;
-	static int m_lastMouseY = 0;
+	static long long m_lastCellX = 0;
+	static long long m_lastCellY = 0;
+	static double m_lastMouseX = 0;
+	static double m_lastMouseY = 0;
 
 	// Calculate in which cell the mouse cursor is located
 	if (this->curCellHoveredX != m_curCellXHovered)
@@ -265,19 +265,19 @@ void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_pos
 	// Scrolling	
 	if (this->scrollWheelButtonIsDown)
 	{
-		long m_scrollDifferenceX = a_posX - m_lastMouseX;
-		long m_scrollDifferenceY = a_posY - m_lastMouseY;
+		double m_scrollDifferenceX = a_posX - m_lastMouseX;
+		double m_scrollDifferenceY = a_posY - m_lastMouseY;
 
 		if (this->curCellHoveredX != m_lastCellX || this->curCellHoveredY != m_lastCellY)
 		{
-			if (m_scrollDifferenceX > 0)
+			if (m_scrollDifferenceX > 0.001)
 				this->scrollOffsetX += 1;
-			else if (m_scrollDifferenceX < 0)
+			else if (m_scrollDifferenceX < -0.001)
 				this->scrollOffsetX -= 1;
 
-			if (m_scrollDifferenceY > 0)
+			if (m_scrollDifferenceY > 0.001)
 				this->scrollOffsetY += 1;
-			else if (m_scrollDifferenceY < 0)
+			else if (m_scrollDifferenceY < -0.001)
 				this->scrollOffsetY -= 1;
 		}
 	}
@@ -407,6 +407,9 @@ void SimulatorPage::AddCellToWorld(bool a_mouseIsBeingDragged)
 
     if (m_worldCell == this->worldCells.cells.end())
 	{
+		if (m_cellState == Background)
+			return;
+
 		// No cells found, insert the new cell into the world
 		if (this->worldCells.TryInsertCellAt(this->curCellHoveredX, this->curCellHoveredY, m_cellState))
 		{

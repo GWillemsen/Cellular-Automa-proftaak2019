@@ -6,7 +6,7 @@
 class PremadeBlock
 {
 public:
-	Cell cells[];
+	Cell cells[1];
 
 public:
 	void LoadFromFile(std::string a_filePath);

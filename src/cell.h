@@ -6,6 +6,7 @@
 #include <glm\gtx\transform.hpp>
 
 #include "shader.h"
+#include "coordinateType.h"
 
 #ifndef __CELL__
 #define __CELL__
@@ -21,8 +22,8 @@ enum CellState : int
 class Cell
 {
 public:
-	long x;
-	long y;
+	coordinatePart x;
+	coordinatePart y;
 
 	CellState cellState;
 	CellState decayState;
@@ -35,10 +36,10 @@ private:
 	Shader shader;
 
 public:
-	Cell(GLint64 x, GLint64 y, CellState state) : Cell()
+	Cell(coordinatePart x, coordinatePart y, CellState state) : Cell()
 	{
-		this->x = (long)x;
-		this->y = (long)y;
+		this->x = x;
+		this->y = y;
 		this->cellState = state;
 		this->decayState = state;
 	}

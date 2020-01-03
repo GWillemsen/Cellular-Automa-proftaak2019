@@ -33,8 +33,8 @@ void Cell::Render(int a_cellSizeInPx, long a_scrollOffsetX, long a_scrollOffsetY
 		break;
 	}
 
-	int m_translateX = this->x + a_scrollOffsetX;
-	int m_translateY = this->y + a_scrollOffsetY;
+	coordinatePart m_translateX = this->x + a_scrollOffsetX;
+	coordinatePart m_translateY = this->y + a_scrollOffsetY;
 
 	glm::mat4 m_translationMatrix = glm::translate(glm::mat4(1.0f), glm::vec3(a_cellSizeInPx * m_translateX, a_cellSizeInPx * m_translateY, 0.0f));
 	glm::mat4 m_scaleMatrix = glm::scale(glm::vec3(a_cellSizeInPx, a_cellSizeInPx, 0.0f));
