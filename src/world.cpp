@@ -2,6 +2,8 @@
 #include <mutex>
 #include <iterator>
 #include <chrono>
+#include <fstream>
+#include <string>
 
 #include "world.h"
 #include "cell.h"
@@ -9,12 +11,66 @@
 // Private methods
 void World::LoadFile()
 {
-	// Loads the contents of a world file
+	// Opens a world from a file
+	std::ifstream m_in(this->filePath, std::ios::in);
+	std::vector<std::string> m_data;
+	std::string m_buffer;
+	if (!m_in.is_open())
+	{
+		m_in.open(this->filePath);
+		if (!m_in.is_open())
+			return;
+	}
+
+	// Read the header
+	std::getline(m_in, m_buffer); // Line breaker is implicitly defined using a function overload to '\n'
+	auto m_worldNamePart = m_buffer.find(",", 0);
+	if (m_worldNamePart > 0)
+	{
+		this->name = m_buffer.substr(0, m_worldNamePart);
+		m_worldNamePart++;
+		auto m_authorPart = m_buffer.find(",", m_worldNamePart);
+		this->author = m_buffer.substr(m_worldNamePart, m_authorPart - m_worldNamePart);
+		m_authorPart++;
+		this->description = m_buffer.substr(m_authorPart, m_buffer.length() - m_authorPart);
+	}
+
+
+	this->EmptyWorld();
+	// Evaluates to true while it a success
+	while (std::getline(m_in, m_buffer))
+	{
+		std::string::size_type position = 0;
+
+		auto m_xPart = m_buffer.find(',', 0);
+		std::string m_xPartData = m_buffer.substr(0, m_xPart);
+		coordinatePart m_readX = ParseCoordinatePartFromString(&m_xPartData[0], 0);
+
+		// Consume the ,
+		m_xPart++;
+		// Find the next y reading from the xPart position and further
+		auto m_yPart = m_buffer.find(',', m_xPart);
+		std::string m_yPartData = m_buffer.substr(m_xPart, m_yPart - m_xPart);
+		coordinatePart m_readY = ParseCoordinatePartFromString(&m_yPartData[0], 0);
+
+		// Consume the ,
+		m_yPart++;
+		std::string m_statePartData = m_buffer.substr(m_yPart, m_buffer.length() - m_yPart);
+		int m_readState = std::stoi(&m_statePartData[0], 0);
+		if (m_readState > CellState::Background)
+			m_readState = CellState::Background;
+
+		this->TryInsertCellAt(m_readX, m_readY, (CellState)m_readState);
+	}
+	m_in.close();
 }
 
 void World::EmptyWorld()
 {
 	// Empties the contents of a world
+	this->cellsEditLock.lock();
+	this->cells.clear();
+	this->cellsEditLock.unlock();
 }
 
 // Public methods
@@ -28,6 +84,9 @@ World::World()
 	this->lastPartGeneration = 0;
 	this->lastUpdateDuration = 0;
 	this->targetSimulationSpeed = 1.0f;
+	this->name = "Hello world";
+	this->author = "John Doe";
+	this->description = "A description";
 	
 	this->InitializeThreads();
 }
@@ -145,14 +204,50 @@ World::~World()
 	this->cells.clear();
 }
 
-void World::Save(std::string a_worldName)
+void World::Save()
 {
 	// Saves the world to a file
+	std::ofstream m_out;
+	m_out.open(this->filePath, std::ios::out);
+	m_out.write(&this->name[0], this->name.length());
+	m_out.write(",", 1);
+	m_out.write(&this->author[0], this->author.length());
+	m_out.write(",\"", 1);
+	m_out.write(&this->description[0], this->description.length());
+	m_out.write("\"\n", 1);
+
+	this->PauzeSimulation();
+	this->cellsEditLock.lock();
+	auto m_start = this->cells.begin();
+	auto m_end = this->cells.end();
+	while (m_start != m_end)
+	{
+		if (m_start->second->cellState == Background)
+			continue;
+		std::string m_x = std::to_string(m_start->second->x);
+		m_out.write(&m_x[0], m_x.length());
+		m_out.write(",", 1);
+		
+		std::string m_y = std::to_string(m_start->second->y);
+		m_out.write(&(m_y[0]), m_y.length());
+		m_out.write(",", 1);
+		
+		std::string m_state = std::to_string((int)m_start->second->cellState);
+		m_out.write(&m_state[0], m_state.length());
+		m_out.write("\n", 1);
+
+		std::advance(m_start, 1);
+	}
+	m_out.close();
+	this->cellsEditLock.unlock();
+
 }
 
 void World::Open(std::string a_filePath)
 {
-	// Opens a world from a file
+	// Loads the contents of a world file
+	this->filePath = a_filePath;
+	this->LoadFile();
 }
 
 void World::SaveAsTemplate(std::string a_worldName)
@@ -230,6 +325,7 @@ void World::UpdateSimulationWithSingleGeneration()
 
 	//TODO multi thread this too?
 	// Process the calculated results
+	this->cellsEditLock.lock();
 	for (auto m_cellPair : this->cells)
 	{
 		unsigned char m_neighborCount = m_cellPair.second->atomic_neighborCount.load();
@@ -242,6 +338,7 @@ void World::UpdateSimulationWithSingleGeneration()
 		m_cellPair.second->cellState = m_cellPair.second->decayState;
 		m_cellPair.second->atomic_neighborCount.store(0);
 	}
+	this->cellsEditLock.unlock();
 }
 
 void World::ProcessPartContinuesly(unsigned int a_threadId, unsigned int a_threadCount)
@@ -607,4 +704,9 @@ bool World::TryDeleteCell(coordinatePart a_cellX, coordinatePart a_cellY)
 		this->cellsEditLock.unlock();
 		return true;
 	}
+}
+
+coordinatePart World::ParseCoordinatePartFromString(char* a_input, std::string::size_type a_from)
+{
+	return std::stoll(a_input, &a_from, 10);
 }

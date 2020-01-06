@@ -185,6 +185,8 @@ void SimulatorPage::HandleInput(GLFWwindow* a_window)
 
 	static bool m_lastPressedKey1 = false;
 	static bool m_lastPressedKey2 = false;
+	static bool m_lastPressedKey3 = false;
+	static bool m_lastPressedKey4 = false;
 	if (glfwGetKey(a_window, GLFW_KEY_2) == GLFW_PRESS)
 	{
 		if (!m_lastPressedKey2)
@@ -219,6 +221,31 @@ void SimulatorPage::HandleInput(GLFWwindow* a_window)
 	{
 		m_lastPressedKey1 = false;
 	}
+
+
+	if (glfwGetKey(a_window, GLFW_KEY_3) == GLFW_PRESS)
+	{
+		if (!m_lastPressedKey3)
+		{
+			this->worldCells.Save();
+		}
+		m_lastPressedKey3 = true;
+	}
+	else
+		m_lastPressedKey3 = false;
+
+	if (glfwGetKey(a_window, GLFW_KEY_4) == GLFW_PRESS)
+	{
+		if (!m_lastPressedKey4)
+		{
+			this->worldCells.Open("world.csv");
+			for (auto m_cell : this->worldCells.cells)
+				m_cell.second->InitRender(this->gridCellShader, this->cellVaoBuffer);
+		}
+		m_lastPressedKey4 = true;
+	}
+	else
+		m_lastPressedKey4 = false;
 }
 
 void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_posY)
