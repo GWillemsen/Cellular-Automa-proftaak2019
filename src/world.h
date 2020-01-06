@@ -56,6 +56,7 @@ private:
 	// Lock for when you need to edit the cells
 	std::shared_mutex cellsEditLock;
 
+	cellCountType cellStatistics[3] = { 0,0,0 };
 public:
 	std::map<std::pair<coordinatePart, coordinatePart>, Cell*> cells;
 
@@ -104,6 +105,8 @@ public:
 	void InViewport(std::vector<Cell*>* a_output, coordinatePart a_x, coordinatePart a_y, unsigned int a_width, unsigned int a_height);
 	bool TryDeleteCell(coordinatePart a_cellX, coordinatePart a_cellY);
 
+	bool GetIsRunning() { return !this->pauzeSimulation; };
+	std::array<cellCountType, 3> GetStatistics();
 };
 
 #endif // !__WORLD__
