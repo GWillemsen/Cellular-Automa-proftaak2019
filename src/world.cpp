@@ -4,6 +4,7 @@
 #include <chrono>
 #include <fstream>
 #include <string>
+#include <array>
 
 #include "world.h"
 #include "cell.h"
@@ -34,7 +35,6 @@ void World::LoadFile()
 		m_authorPart++;
 		this->description = m_buffer.substr(m_authorPart, m_buffer.length() - m_authorPart);
 	}
-
 
 	this->EmptyWorld();
 	// Evaluates to true while it a success
@@ -70,6 +70,9 @@ void World::EmptyWorld()
 	// Empties the contents of a world
 	this->cellsEditLock.lock();
 	this->cells.clear();
+	this->cellStatistics[0] = 0;
+	this->cellStatistics[1] = 0;
+	this->cellStatistics[2] = 0;
 	this->cellsEditLock.unlock();
 }
 
@@ -87,6 +90,7 @@ World::World()
 	this->name = "Hello world";
 	this->author = "John Doe";
 	this->description = "A description";
+	this->filePath = "";
 	
 	this->InitializeThreads();
 }
@@ -189,7 +193,6 @@ World::~World()
 	{
 		if (m_begining->joinable())
 			m_begining->join();
-		
 		std::advance(m_begining, 1);
 	}
 	this->simUpdaters.clear();
@@ -209,6 +212,8 @@ void World::Save()
 	// Saves the world to a file
 	std::ofstream m_out;
 	m_out.open(this->filePath, std::ios::out);
+	if (!m_out.is_open())
+		return;
 	m_out.write(&this->name[0], this->name.length());
 	m_out.write(",", 1);
 	m_out.write(&this->author[0], this->author.length());
@@ -216,7 +221,6 @@ void World::Save()
 	m_out.write(&this->description[0], this->description.length());
 	m_out.write("\"\n", 1);
 
-	this->PauzeSimulation();
 	this->cellsEditLock.lock();
 	auto m_start = this->cells.begin();
 	auto m_end = this->cells.end();
@@ -276,6 +280,10 @@ void World::PauzeSimulation()
 void World::ResetSimulation()
 {
 	// Resets the simulation
+	if (!this->filePath.empty())
+		this->LoadFile();
+	else
+		this->EmptyWorld();
 }
 
 void World::UpdateSimulationWithSingleGeneration()
@@ -326,6 +334,9 @@ void World::UpdateSimulationWithSingleGeneration()
 	//TODO multi thread this too?
 	// Process the calculated results
 	this->cellsEditLock.lock();
+	cellCountType m_newHeadCount = 0;
+	cellCountType m_newTailCount = 0;
+	cellCountType m_newConductorCount = 0;
 	for (auto m_cellPair : this->cells)
 	{
 		unsigned char m_neighborCount = m_cellPair.second->atomic_neighborCount.load();
@@ -334,10 +345,17 @@ void World::UpdateSimulationWithSingleGeneration()
 			 m_cellPair.second->cellState != Tail)
 		{
 			m_cellPair.second->decayState = Head;
+			m_newHeadCount += 1;
 		}
+
+		m_newTailCount += (m_cellPair.second->cellState == Tail);
+		m_newConductorCount += (m_cellPair.second->cellState == Conductor);
 		m_cellPair.second->cellState = m_cellPair.second->decayState;
 		m_cellPair.second->atomic_neighborCount.store(0);
 	}
+	this->cellStatistics[0] = m_newHeadCount;
+	this->cellStatistics[1] = m_newTailCount;
+	this->cellStatistics[2] = m_newConductorCount;
 	this->cellsEditLock.unlock();
 }
 
@@ -528,7 +546,7 @@ void World::TimerThread()
 {
 	const float m_defaultDurationOfOneFrameInMs = 1000.0;
 	bool m_stop = false;
-	std::chrono::time_point<std::chrono::steady_clock> m_lastUpdatePoint = std::chrono::steady_clock::now();
+	std::chrono::time_point<std::chrono::high_resolution_clock> m_lastUpdatePoint = std::chrono::high_resolution_clock::now();
 	bool m_fromTimeChangeEvent = false;
 	while (!m_stop)
 	{
@@ -536,7 +554,7 @@ void World::TimerThread()
 		this->simCalcUpdateLock.lock();
 		float m_targetSpeed = this->targetSimulationSpeed;
 		long m_interval = (long)(m_defaultDurationOfOneFrameInMs / m_targetSpeed);
-		auto m_nowTime = std::chrono::steady_clock::now();
+		auto m_nowTime = std::chrono::high_resolution_clock::now();
 		bool m_pauzed = this->pauzeSimulation;
 		this->simCalcUpdateLock.unlock();
 
@@ -557,11 +575,16 @@ void World::TimerThread()
 			}
 			if (m_allowUpdate)
 			{
-				clock_t m_starTime = clock();
+				std::chrono::time_point<std::chrono::high_resolution_clock> m_starTime = std::chrono::high_resolution_clock::now();
 				this->UpdateSimulationWithSingleGeneration();
-				clock_t m_endTime = clock();
-				float m_differenceInMs = (m_endTime - m_starTime) / (CLOCKS_PER_SEC / 1000.0f);
-				this->lastUpdateDuration = m_differenceInMs;
+				std::chrono::time_point<std::chrono::high_resolution_clock> m_endTime = std::chrono::high_resolution_clock::now();
+
+				// Subtract the 2 time points from each other and calculate the difference between them in
+				// milliseconds with floating point math.
+				auto m_duration = std::chrono::duration<float, std::milli>(m_endTime - m_starTime);
+
+				// Get the number of milliseconds
+				this->lastUpdateDuration = m_duration.count();
 			}
 		}
 
@@ -578,7 +601,7 @@ void World::TimerThread()
 			// wait for either the simulation to be canceled or the speed to be changed
 			// returns false if timeout has expired and pred() is still false. otherwise it will return true
 			bool m_waitResult = this->simCalcUpdate.wait_until(m_lk, m_nextWake, [this, m_targetSpeed] {
-  				return this->cancelSimulation || this->targetSimulationSpeed != m_targetSpeed;
+				return this->cancelSimulation || this->targetSimulationSpeed != m_targetSpeed;
 			});
 			m_lk.unlock();
 			m_fromTimeChangeEvent = false;
@@ -629,6 +652,12 @@ bool World::TryInsertCellAt(coordinatePart a_cellX, coordinatePart a_cellY, Cell
 	this->cellsEditLock.unlock_shared();
 	this->cellsEditLock.lock();
 	this->cells.insert(std::make_pair(std::make_pair(a_cellX, a_cellY), new Cell(a_cellX, a_cellY, a_state)));
+	if (a_state == Head)
+		this->cellStatistics[0] += 1;
+	else if (a_state== Tail)
+		this->cellStatistics[1] += 1;
+	else if (a_state == Conductor)
+		this->cellStatistics[2] += 1;
 	this->cellsEditLock.unlock();
 	return true;
 }
@@ -646,7 +675,22 @@ bool World::UpdateCellState(coordinatePart a_cellX, coordinatePart a_cellY, std:
 	{
 		this->cellsEditLock.unlock_shared();
 		this->cellsEditLock.lock();
+		if (m_found->second->cellState == Head && this->cellStatistics[0] > 0)
+			this->cellStatistics[0] -= 1;
+		else if (m_found->second->cellState == Tail && this->cellStatistics[1] > 0)
+			this->cellStatistics[1] -= 1;
+		else if (m_found->second->cellState == Conductor && this->cellStatistics[2] > 0)
+			this->cellStatistics[2] -= 1;
+		
 		bool m_result = a_updater(m_found->second);
+		
+		if (m_found->second->cellState == Head)
+			this->cellStatistics[0] += 1;
+		else if (m_found->second->cellState == Tail)
+			this->cellStatistics[1] += 1;
+		else if (m_found->second->cellState == Conductor)
+			this->cellStatistics[2] += 1;
+
 		this->cellsEditLock.unlock();
 		return m_result;
 	}
@@ -700,6 +744,12 @@ bool World::TryDeleteCell(coordinatePart a_cellX, coordinatePart a_cellY)
 	{
 		this->cellsEditLock.unlock_shared();
 		this->cellsEditLock.lock();
+		if (m_found->second->cellState == Head && this->cellStatistics[0] > 0)
+			this->cellStatistics[0] -= 1;
+		else if (m_found->second->cellState == Tail && this->cellStatistics[1] > 0)
+			this->cellStatistics[1] -= 1;
+		else if (m_found->second->cellState == Conductor && this->cellStatistics[2] > 0)
+			this->cellStatistics[2] -= 1;
 		this->cells.erase(m_found);
 		this->cellsEditLock.unlock();
 		return true;
@@ -709,4 +759,9 @@ bool World::TryDeleteCell(coordinatePart a_cellX, coordinatePart a_cellY)
 coordinatePart World::ParseCoordinatePartFromString(char* a_input, std::string::size_type a_from)
 {
 	return std::stoll(a_input, &a_from, 10);
+}
+
+std::array<cellCountType, 3> World::GetStatistics()
+{
+	return std::array<cellCountType, 3>{ this->cellStatistics[0], this->cellStatistics[1], this->cellStatistics[2] };
 }

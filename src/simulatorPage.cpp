@@ -1,5 +1,7 @@
 // Standard system libraries
 #include "simulatorPage.h"
+#include <string>
+#include <array>
 
 SimulatorPage::SimulatorPage(GLFWwindow* a_window) : Page(a_window, "SimulatorPage")
 {
@@ -145,25 +147,95 @@ void SimulatorPage::RenderOpenGL()
 void SimulatorPage::RenderImGui()
 {
 	// Renders the GUI with Dear ImGUI
-
 	ImGui_ImplOpenGL3_NewFrame();
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
+	const ImGuiWindowFlags m_defaultWindowArgs = ImGuiWindowFlags_NoCollapse;
+	static float m_targetSimulationSpeed = this->worldCells.GetTargetSpeed();
+	static bool m_brushWindowOpen = true;
+	static bool m_debugWindowOpen = true;
 	
+	if (ImGui::BeginMainMenuBar())
 	{
-		ImGui::BeginMainMenuBar();
-		ImGui::MenuItem("File", NULL, &this->fileMenuItemFileIsClicked);
+		if (ImGui::BeginMenu("File"))
+		{
+			if (ImGui::MenuItem("Open"))
+				this->worldCells.Open("world.csv");
+			if (ImGui::MenuItem("Save"))
+				this->worldCells.Save();
+			if (ImGui::MenuItem("Exit"))
+				glfwSetWindowShouldClose(this->window, 1);
+			ImGui::EndMenu();
+		}
+
+		if (ImGui::BeginMenu("View"))
+		{
+			ImGui::MenuItem("Debug window", nullptr, &m_debugWindowOpen);
+			ImGui::MenuItem("Brushes window", nullptr, &m_brushWindowOpen);
+
+			ImGui::EndMenu();
+		}
 		ImGui::EndMainMenuBar();
 	}
-
-	ImGui::Begin("Brush");
-
-	if (ImGui::ListBox("Brush:", &this->selectedCellDrawName, this->cellDrawStateNames, 4))
+	
+	if (ImGui::Begin("World options", false, m_defaultWindowArgs))
 	{
-		this->cellDrawState = (CellState)this->selectedCellDrawName;
+		if (ImGui::Button("Start"))
+			this->worldCells.StartSimulation();
+		if (ImGui::Button("Stop"))
+			this->worldCells.PauzeSimulation();
+		if (ImGui::Button("Reset"))
+			this->worldCells.ResetSimulation();
+
+		if (ImGui::SliderFloat("Target speed", &m_targetSimulationSpeed, 0.01, 256, "%.2f", 5.0f))
+			this->worldCells.SetTargetSpeed(m_targetSimulationSpeed);
+	}
+	// Legacy API style not yet fixed by ImGui
+	ImGui::End();
+
+	if (m_brushWindowOpen)
+	{
+		if (ImGui::Begin("Brush", false, m_defaultWindowArgs))
+		{
+			ImGui::SetNextItemWidth(100);
+			if (ImGui::ListBox("", &this->selectedCellDrawName, this->cellDrawStateNames, 4))
+			{
+				this->cellDrawState = (CellState)this->selectedCellDrawName;
+			}
+		}
+		// Legacy API style not yet fixed by ImGui
+		ImGui::End();
 	}
 
-	ImGui::End();
+	if (m_debugWindowOpen)
+	{
+		if (ImGui::Begin("Debug", false, m_defaultWindowArgs))
+		{
+			ImGui::Columns(2);
+			ImGui::SetColumnWidth(0, 200);
+			ImGui::SetColumnWidth(1, 80);
+
+			ImGui::Text("Status: ");
+			ImGui::Text("Conductor: ");
+			ImGui::Text("Tail: ");
+			ImGui::Text("Head: ");
+			ImGui::Text("Last update cycle time (ms): ");
+			ImGui::NextColumn();
+			if (this->worldCells.GetIsRunning())
+				ImGui::Text("Running");
+			else
+				ImGui::Text("Paused");
+
+			auto m_cellStats = this->worldCells.GetStatistics();
+			ImGui::Text("%i", m_cellStats[2]); //Conductor count
+			ImGui::Text("%i", m_cellStats[1]); // Tail count
+			ImGui::Text("%i", m_cellStats[0]); // Head count
+			ImGui::Text("%.4f", this->worldCells.lastUpdateDuration);
+		}
+		// Legacy API style not yet fixed by ImGui
+		ImGui::End();
+	}
+	this->isInImguiWindow = ImGui::IsAnyWindowHovered();
 
 	ImGui::Render();
 
@@ -250,9 +322,7 @@ void SimulatorPage::HandleInput(GLFWwindow* a_window)
 
 void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_posY)
 {
-    if (this->imguiIO.WantCaptureMouse)
-		return;
-	long m_curCellXHovered = (((long)(this->gridLineSizeInPx + a_posX) / this->cellSizeInPx));
+    long m_curCellXHovered = (((long)(this->gridLineSizeInPx + a_posX) / this->cellSizeInPx));
 	long m_curCellYHovered = (((long)(this->gridLineSizeInPx + a_posY) / this->cellSizeInPx));
 	
 	static long long m_lastCellX = 0;
@@ -319,6 +389,9 @@ void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_pos
 
 void SimulatorPage::MouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods)
 {
+	if (this->isInImguiWindow)
+		return;
+
 	// Left mouse button press
 	if (a_button == 0 && a_action == 1)
 	{
@@ -357,6 +430,9 @@ void SimulatorPage::MouseClick(GLFWwindow* a_window, int a_button, int a_action,
 
 void SimulatorPage::MouseScroll(GLFWwindow* a_window, double a_xOffset, double a_yOffset)
 {
+	if (this->isInImguiWindow)
+		return;
+
 	// Zoom in
 	if (a_yOffset > 0 && this->cellSizeInPx < 128)
 	{

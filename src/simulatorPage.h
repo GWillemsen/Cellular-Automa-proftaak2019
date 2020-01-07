@@ -104,6 +104,8 @@ private:
 	CellState cellDrawState = CellState::Conductor;
 	char** cellDrawStateNames = new char* [4]{ "Conductor", "Head", "Tail", "Background" };;
 	int selectedCellDrawName = 0;
+
+	bool isInImguiWindow;
 	
 public:
 	SimulatorPage(GLFWwindow* a_window);
