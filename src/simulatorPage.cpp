@@ -331,16 +331,14 @@ void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_pos
 	static double m_lastMouseY = 0;
 
 	// Calculate in which cell the mouse cursor is located
-	if (this->curCellHoveredX != m_curCellXHovered)
+	if (this->curCellHoveredX != m_curCellXHovered - this->scrollOffsetX)
 	{
 		this->curCellHoveredX = m_curCellXHovered - this->scrollOffsetX;
-		std::cout << "x" << this->curCellHoveredX << " y" << this->curCellHoveredX << std::endl;
 	}
 
-	if (this->curCellHoveredY != m_curCellYHovered)
+	if (this->curCellHoveredY != m_curCellYHovered - this->scrollOffsetY)
 	{
 		this->curCellHoveredY = m_curCellYHovered - this->scrollOffsetY;
-		std::cout << "x" << this->curCellHoveredX << " y" << this->curCellHoveredY << std::endl;
 	}
   
 	// Add / remove cells while the mouse is being dragged around
@@ -447,6 +445,16 @@ void SimulatorPage::MouseScroll(GLFWwindow* a_window, double a_xOffset, double a
 
 void SimulatorPage::RenderCells()
 {
+	// Get all of the cells that are located within the viewport
+	int m_viewportOriginX = -1 - this->scrollOffsetX;
+	int m_viewportOriginY = -1 - this->scrollOffsetY;
+
+	int m_viewportWidth = (this->screenWidth / this->cellSizeInPx) + 2;
+	int m_viewportHeight = (this->screenHeight / this->cellSizeInPx) + 2;
+
+	std::vector<Cell*> m_cellsInViewport;
+	this->worldCells.InViewport(&m_cellsInViewport, m_viewportOriginX, m_viewportOriginY, m_viewportWidth, m_viewportHeight);
+
 	// Set the projection matrix
 	this->gridCellShader.use();
 	int m_projectionMatrixUniform = this->gridCellShader.getUniformLocation("u_ProjectionMatrix");
@@ -454,9 +462,10 @@ void SimulatorPage::RenderCells()
 	glUniformMatrix4fv(m_projectionMatrixUniform, 1, GL_FALSE, &this->projectionMatrix[0][0]);
 
 	// Render all of the worldcells
-	for (auto m_worldCell : this->worldCells.cells)
+	for (auto m_worldCell : m_cellsInViewport)
 	{
-		m_worldCell.second->Render(this->cellSizeInPx, this->scrollOffsetX, this->scrollOffsetY);
+		if(m_worldCell != nullptr)
+			m_worldCell->Render(this->cellSizeInPx, this->scrollOffsetX, this->scrollOffsetY);
 	}
 }
 
@@ -527,18 +536,22 @@ void SimulatorPage::AddCellToWorld(bool a_mouseIsBeingDragged)
 		if (m_cellState == Background)
 			this->RemoveCellFromWorld();
 		else
-			m_worldCell->second->cellState = m_cellState;
+			this->worldCells.UpdateCellState(this->curCellHoveredX, this->curCellHoveredY, [m_cellState](Cell* a_foundCell) -> bool { 
+				if (a_foundCell->cellState != m_cellState)
+				{
+					a_foundCell->cellState = m_cellState;
+					return true; 
+				}
+				else
+				{
+					return false; 
+				}
+			});
 	}
 
 }
 
 void SimulatorPage::RemoveCellFromWorld()
 {
-	auto m_worldCell = this->worldCells.cells.find(std::make_pair(this->curCellHoveredX, this->curCellHoveredY));
-
-	// Make sure that the cell exists within the world
-	if (m_worldCell != this->worldCells.cells.end())
-	{
-		this->worldCells.cells.erase(m_worldCell);
-	}
+	this->worldCells.TryDeleteCell(this->curCellHoveredX, this->curCellHoveredY);
 }
