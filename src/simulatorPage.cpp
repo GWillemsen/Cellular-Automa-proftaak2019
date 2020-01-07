@@ -536,18 +536,22 @@ void SimulatorPage::AddCellToWorld(bool a_mouseIsBeingDragged)
 		if (m_cellState == Background)
 			this->RemoveCellFromWorld();
 		else
-			m_worldCell->second->cellState = m_cellState;
+			this->worldCells.UpdateCellState(this->curCellHoveredX, this->curCellHoveredY, [m_cellState](Cell* a_foundCell) -> bool { 
+				if (a_foundCell->cellState != m_cellState)
+				{
+					a_foundCell->cellState = m_cellState;
+					return true; 
+				}
+				else
+				{
+					return false; 
+				}
+			});
 	}
 
 }
 
 void SimulatorPage::RemoveCellFromWorld()
 {
-	auto m_worldCell = this->worldCells.cells.find(std::make_pair(this->curCellHoveredX, this->curCellHoveredY));
-
-	// Make sure that the cell exists within the world
-	if (m_worldCell != this->worldCells.cells.end())
-	{
-		this->worldCells.cells.erase(m_worldCell);
-	}
+	this->worldCells.TryDeleteCell(this->curCellHoveredX, this->curCellHoveredY);
 }
