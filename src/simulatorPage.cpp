@@ -126,6 +126,7 @@ void SimulatorPage::InitImGui()
 	// Setup renderer bindings
 	ImGui_ImplGlfw_InitForOpenGL(this->window, true);
 	ImGui_ImplOpenGL3_Init(this->glsl_version);
+	ImGui::LoadIniSettingsFromDisk("imgui.ini");
 }
 
 void SimulatorPage::InitSimulator()
@@ -430,7 +431,7 @@ void SimulatorPage::MouseScroll(GLFWwindow* a_window, double a_xOffset, double a
 {
 	if (this->isInImguiWindow)
 		return;
-
+	
 	// Zoom in
 	if (a_yOffset > 0 && this->cellSizeInPx < 128)
 	{

@@ -1,6 +1,9 @@
 // Include libs.
 #include <thread>
 #include <iostream>
+#include <fstream>
+#include <direct.h>
+
 #include <glad\glad.h>
 #include <GLFW\glfw3.h>
 #include <math.h>
@@ -22,6 +25,7 @@
 #include "shader.h"
 #include "config.h"
 #include "simulatorPage.h"
+#include "resources.h"
 
 // References.
 void framebuffer_size_callback(GLFWwindow* a_window, int a_width, int a_height);
@@ -37,12 +41,16 @@ void mouseHover(GLFWwindow* a_window, double a_posX, double a_posY);
 void mouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods);
 void mouseScroll(GLFWwindow* a_window, double a_xOffset, double a_yOffset);
 
+void createResources();
+
 Page* m_nextPage = nullptr;
 int screenWidth = 1920;
 int screenHeight = 1080;
 
 int main()
 {
+	createResources();
+
 	InitGLFW();
 
 	// ---
@@ -216,4 +224,33 @@ void mouseScroll(GLFWwindow* a_window, double a_xOffset, double a_yOffset)
 {
 	if (m_nextPage != nullptr)
 		m_nextPage->MouseScroll(a_window, a_xOffset, a_yOffset);
+}
+
+void createResources()
+{
+	auto m_resources = GetResources();
+	for (auto m_dirs : m_resources)
+	{
+		if (!m_dirs.first.empty())
+			auto _ = _mkdir(m_dirs.first.c_str());
+		for (auto m_file : m_dirs.second)
+		{
+			std::string m_separtor = "/";
+			if (m_dirs.first.empty())
+				m_separtor = "";
+			std::string m_filePath = m_dirs.first + m_separtor + m_file.first;
+
+			std::ifstream m_in(m_filePath.c_str());
+			if (!m_in.good())
+			{
+				std::ofstream m_out;
+				m_out.open(m_filePath, std::ios::out | std::ios::trunc);
+				if (m_out.is_open())
+				{
+					m_out << m_file.second;
+					m_out.close();
+				}
+			}
+		}
+	}
 }
