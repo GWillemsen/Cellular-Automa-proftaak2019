@@ -9,10 +9,14 @@
 class Page
 {
 public:
+	const char* glsl_version = "#version 330 core";
 	GLFWwindow* window;
 	int screenWidth;
 	int screenHeight;
 	std::string pageName;
+protected:
+	Page* nextPage = nullptr;
+	bool closeThisPage = false;
 private:
 	unsigned int lastLineNumber = 0;
 public:

@@ -24,6 +24,7 @@
 
 #include "shader.h"
 #include "config.h"
+#include "homepage.h"
 #include "simulatorPage.h"
 #include "resources.h"
 
@@ -79,7 +80,7 @@ int main()
 	glfwSetCursorPosCallback(window, mouseHover); // Catches the mouse move event
 	glfwSetScrollCallback(window, mouseScroll);
 
-	m_nextPage = new SimulatorPage(window);
+	m_nextPage = new HomePage(window);
 
 	while (m_nextPage)
 	{
@@ -121,10 +122,11 @@ GLFWwindow* CreateWindow()
 
 	glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
 	//glfwWindowHint(GLFW_MAXIMIZED, GLFW_FALSE);
-	glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
-	
-	//GLFWwindow* window = glfwCreateWindow(800, 600, "LearnOpenGL", NULL, NULL);
-	GLFWwindow* window = glfwCreateWindow(mode->width, mode->height, "LearnOpenGL", monitor, NULL);
+	//glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
+	glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+
+	GLFWwindow* window = glfwCreateWindow(800, 600, "LearnOpenGL", NULL, NULL);
+	//GLFWwindow* window = glfwCreateWindow(mode->width, mode->height, "LearnOpenGL", monitor, NULL);
 
 	// Get the resulting screen width & height
 	glfwGetWindowSize(window, &screenWidth, &screenHeight);

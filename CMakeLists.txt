@@ -40,6 +40,7 @@ set (CPPFILES
 	"src/shader.cpp"
 	"src/simulatorPage.cpp"
 	"src/world.cpp"
+	"src/homepage.cpp"
 	)
 
 configure_file(src/shaders/basicFragmentShader.glsl shaders/basicFragmentShader.glsl)
