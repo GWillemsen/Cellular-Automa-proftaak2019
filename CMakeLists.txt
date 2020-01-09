@@ -40,6 +40,7 @@ set (CPPFILES
 	"src/shader.cpp"
 	"src/simulatorPage.cpp"
 	"src/world.cpp"
+	"dependencies/IMGUI/ImGuiFileDialog.cpp"
 	)
 
 configure_file(src/shaders/basicFragmentShader.glsl shaders/basicFragmentShader.glsl)

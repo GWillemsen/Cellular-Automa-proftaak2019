@@ -43,6 +43,7 @@ public:
 	virtual void MouseHover(GLFWwindow* a_window, double a_posX, double a_posY) {};
 	virtual void MouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods) {};
 	virtual void MouseScroll(GLFWwindow* a_window, double a_xOffset, double a_yOffset) {};
+	virtual void KeyPress(GLFWwindow* a_window, int a_key, int a_scancode, int a_action, int a_mods) {};
 };
 
 #endif // !__PAGE__

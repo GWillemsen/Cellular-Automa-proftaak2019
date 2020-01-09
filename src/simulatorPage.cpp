@@ -117,6 +117,7 @@ void SimulatorPage::InitImGui()
 	ImGui::CreateContext();
 
 	this->imguiIO = ImGui::GetIO(); (void)this->imguiIO;
+	this->imguiIO.WantCaptureKeyboard = true;
 
 	// Enable keyboard input
 	this->imguiIO.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
@@ -150,21 +151,27 @@ void SimulatorPage::RenderImGui()
 	ImGui_ImplOpenGL3_NewFrame();
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
+
+	ImGui::CaptureKeyboardFromApp(true);
+	
 	const ImGuiWindowFlags m_defaultWindowArgs = ImGuiWindowFlags_NoCollapse;
 	static float m_targetSimulationSpeed = this->worldCells.GetTargetSpeed();
+	
 	static bool m_brushWindowOpen = true;
 	static bool m_debugWindowOpen = true;
+	static bool m_saveWorldWindowOpen = false;
 	
 	if (ImGui::BeginMainMenuBar())
 	{
 		if (ImGui::BeginMenu("File"))
 		{
 			if (ImGui::MenuItem("Open"))
-				this->worldCells.Open("world.csv");
+				ImGuiFileDialog::Instance()->OpenDialog("chooseWorldFile", "Choose world file", ".csv", "");
 			if (ImGui::MenuItem("Save"))
-				this->worldCells.Save();
+				m_saveWorldWindowOpen = true;
 			if (ImGui::MenuItem("Exit"))
 				glfwSetWindowShouldClose(this->window, 1);
+
 			ImGui::EndMenu();
 		}
 
@@ -237,6 +244,47 @@ void SimulatorPage::RenderImGui()
 	}
 	this->isInImguiWindow = ImGui::IsAnyWindowHovered();
 
+	if (m_saveWorldWindowOpen)
+	{
+		if (ImGui::Begin("Save World", false, m_defaultWindowArgs))
+		{
+			ImGui::InputText("Author Name", &this->worldCells.author[0], this->worldCells.author.length());
+			ImGui::InputText("World Name", &this->worldCells.name[0], this->worldCells.name.length());
+			ImGui::InputText("Description", &this->worldCells.description[0], this->worldCells.description.length());
+			
+			if (ImGui::Button("Save", ImVec2(0, 0)))
+			{
+				this->worldCells.filePath = this->worldCells.name + ".csv\0";
+				this->worldCells.Save();
+				m_saveWorldWindowOpen = false;
+			}
+		}
+		// Legacy API style not yet fixed by ImGui
+		ImGui::End();
+	}
+
+	// Display the choose file browser dialog
+	if (ImGuiFileDialog::Instance()->FileDialog("chooseWorldFile"))
+	{
+		// IF the action is OK we will get the chosen file from the file dialog
+		if (ImGuiFileDialog::Instance()->IsOk == true)
+		{
+			// Get the path and name of the file and open it with the world.h API
+			std::string m_filePathName = ImGuiFileDialog::Instance()->GetFilepathName();
+
+			// Open the file
+			if (m_filePathName != "")
+				this->worldCells.Open(m_filePathName);
+
+			// Initialize the rendering of all the newly added cells
+			for (auto m_cell : this->worldCells.cells)
+				m_cell.second->InitRender(this->gridCellShader, this->cellVaoBuffer);
+		}
+
+		// close
+		ImGuiFileDialog::Instance()->CloseDialog("chooseWorldFile");
+	}
+
 	ImGui::Render();
 
 	ImGui::EndFrame();	
@@ -306,18 +354,18 @@ void SimulatorPage::HandleInput(GLFWwindow* a_window)
 	else
 		m_lastPressedKey3 = false;
 
-	if (glfwGetKey(a_window, GLFW_KEY_4) == GLFW_PRESS)
-	{
-		if (!m_lastPressedKey4)
-		{
-			this->worldCells.Open("world.csv");
-			for (auto m_cell : this->worldCells.cells)
-				m_cell.second->InitRender(this->gridCellShader, this->cellVaoBuffer);
-		}
-		m_lastPressedKey4 = true;
-	}
-	else
-		m_lastPressedKey4 = false;
+	//if (glfwGetKey(a_window, GLFW_KEY_4) == GLFW_PRESS)
+	//{
+	//	if (!m_lastPressedKey4)
+	//	{
+	//		this->worldCells.Open("world.csv");
+	//		for (auto m_cell : this->worldCells.cells)
+	//			m_cell.second->InitRender(this->gridCellShader, this->cellVaoBuffer);
+	//	}
+	//	m_lastPressedKey4 = true;
+	//}
+	//else
+	//	m_lastPressedKey4 = false;
 }
 
 void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_posY)
@@ -443,6 +491,54 @@ void SimulatorPage::MouseScroll(GLFWwindow* a_window, double a_xOffset, double a
 	}
 }
 
+void SimulatorPage::KeyPress(GLFWwindow* a_window, int a_key, int a_scancode, int a_action, int a_mods)
+{
+	if (a_key <= CHAR_MAX)
+	{
+		if (a_mods == 0) // No modifier
+		{
+			// normal keys
+			if (a_key >= 65 && a_key <= 90)
+				a_key += 32;
+		}
+		else
+		{
+			// key 1 tot 5 above qwerty
+			if (a_key >= 49 && a_key <= 53 && a_key != 50 /*see below*/)
+				a_key -= 16;
+			// 2 -> 50
+			else if (a_key == 50)
+				a_key = 64;
+			// 6 -> 38
+			else if (a_key == 54)
+				a_key = 94;
+			//7 -> 55
+			else if (a_key == 55)
+				a_key = 38;
+			// 8 -> 56
+			else if (a_key == 56)
+				a_key = 42;
+			// 9 -> 57
+			else if (a_key == 57)
+				a_key = 40;
+			//0 -> 48
+			else if (a_key == 48)
+				a_key = 41;
+			// _ -> 45
+			else if (a_key == 45)
+				a_key = 95;
+			// + -> 61
+			else if (a_key == 61)
+				a_key = 43;
+		}
+	
+		std::cout << "char val: " << (char)a_key << " " << a_key << " " << a_mods << std::endl;
+		//const std::wstring wide_string = std::wstring((wchar_t)a_key);
+		//convert
+		this->imguiIO.AddInputCharacter((char)a_key);
+	}
+}
+
 void SimulatorPage::RenderCells()
 {
 	// Get all of the cells that are located within the viewport
@@ -514,39 +610,25 @@ void SimulatorPage::RenderGrid()
 
 void SimulatorPage::AddCellToWorld(bool a_mouseIsBeingDragged)
 {
-	auto m_worldCell = this->worldCells.cells.find(std::make_pair(this->curCellHoveredX, this->curCellHoveredY));
 	CellState m_cellState = this->cellDrawState; // Gets manipulated based on logic
-
-    if (m_worldCell == this->worldCells.cells.end())
-	{
-		if (m_cellState == Background)
-			return;
-
-		// No cells found, insert the new cell into the world
-		if (this->worldCells.TryInsertCellAt(this->curCellHoveredX, this->curCellHoveredY, m_cellState))
-		{
-			// Find the newly added world cell and initialize the rendering
-			auto m_newWorldCell = this->worldCells.cells.find(std::make_pair(this->curCellHoveredX, this->curCellHoveredY));
-			m_newWorldCell->second->InitRender(this->gridCellShader, this->cellVaoBuffer);
-		}
-	}
+	// Change cell state
+	if (m_cellState == Background)
+		this->RemoveCellFromWorld();
 	else
 	{
-		// Change cell state
-		if (m_cellState == Background)
-			this->RemoveCellFromWorld();
-		else
-			this->worldCells.UpdateCellState(this->curCellHoveredX, this->curCellHoveredY, [m_cellState](Cell* a_foundCell) -> bool { 
-				if (a_foundCell->cellState != m_cellState)
-				{
-					a_foundCell->cellState = m_cellState;
-					return true; 
-				}
-				else
-				{
-					return false; 
-				}
-			});
+		bool m_doInit = false;
+		if (this->worldCells.TryInsertCellAt(this->curCellHoveredX, this->curCellHoveredY, m_cellState))
+			m_doInit = true;
+		GLint m_vaoBuffer = this->cellVaoBuffer;
+		Shader* m_shader = &this->gridCellShader;
+		this->worldCells.TryUpdateCell(this->curCellHoveredX, this->curCellHoveredY, [m_cellState, m_doInit, m_vaoBuffer, m_shader](Cell* a_foundCell) -> bool 
+		{ 
+			if (m_doInit)
+				a_foundCell->InitRender(*m_shader, m_vaoBuffer);
+
+			a_foundCell->cellState = m_cellState;
+			return true;
+		});
 	}
 
 }
