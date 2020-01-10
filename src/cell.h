@@ -28,7 +28,6 @@ public:
 	CellState cellState;
 	CellState decayState;
 	
-	unsigned char neighborCount;
 	std::atomic<unsigned char> atomic_neighborCount;
 
 private:
@@ -42,9 +41,11 @@ public:
 		this->y = y;
 		this->cellState = state;
 		this->decayState = state;
+		this->shader = Shader();
+		this->atomic_neighborCount.store(0);
 	}
 
-	Cell()
+	Cell() : shader()
 	{
 		this->decayState = Background;
 		this->cellState = Background;
@@ -54,7 +55,7 @@ public:
 	}
 
 	void InitRender(Shader a_shader, GLuint a_vaoBufferId);
-	void Render(int a_cellSizeInPx, long a_scrollOffsetX, long a_scrollOffsetY);
+	void Render(int a_cellSizeInPx, coordinatePart a_scrollOffsetX, coordinatePart a_scrollOffsetY);
 };
 
 #endif // __CELL__

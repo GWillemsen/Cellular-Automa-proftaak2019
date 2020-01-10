@@ -1,4 +1,5 @@
 #include "cell.h"
+#include "coordinateType.h"
 
 void Cell::InitRender(Shader a_shader, GLuint a_vaoBufferId)
 {
@@ -6,7 +7,7 @@ void Cell::InitRender(Shader a_shader, GLuint a_vaoBufferId)
 	this->vaoBuffer = a_vaoBufferId;
 }
 
-void Cell::Render(int a_cellSizeInPx, long a_scrollOffsetX, long a_scrollOffsetY)
+void Cell::Render(int a_cellSizeInPx, coordinatePart a_scrollOffsetX, coordinatePart a_scrollOffsetY)
 {
 	// Make sure that there is a valid VAO buffer bound
 	if (this->vaoBuffer == -1)

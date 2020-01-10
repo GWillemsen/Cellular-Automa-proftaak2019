@@ -88,17 +88,20 @@ private:
 	GLuint gridVerticalLineVboBuffer = -1;
 
 	// Grid system
-	long curCellHoveredX = 0;
-	long curCellHoveredY = 0;
-	int scrollDelayBuffer = 0;
-	int scrollSensitivity = 100;
-
-	long scrollOffsetX = 0;
-	long scrollOffsetY = 0;
+	coordinatePart curCellHoveredX = 0;
+	coordinatePart curCellHoveredY = 0;
+	long int scrollDelayBuffer = 0;
+	
+	coordinatePart scrollOffsetX = 0;
+	coordinatePart scrollOffsetY = 0;
 
 	bool leftMouseButtonIsDown = false;
 	bool rightMouseButtonIsDown = false;
 	bool scrollWheelButtonIsDown = false;
+
+	char** brushRadiusNames = new char*[6] { "1", "3", "5", "7", "9", "11" };
+	int brushRadiusSelectorPos = 0;
+	int brushRadius = 2;
 
 	// The cell state that the mouse will draw in
 	CellState cellDrawState = CellState::Conductor;
@@ -137,7 +140,7 @@ private:
 	void RenderGrid();
 	void RenderCells();
 
-	void AddCellToWorld(bool a_mouseIsBeingDragged);
+	void AddCellToWorld(coordinatePart a_x, coordinatePart a_y);
 	void RemoveCellFromWorld();
 };
 

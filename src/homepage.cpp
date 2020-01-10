@@ -18,7 +18,6 @@ HomePage::HomePage(GLFWwindow* a_window) : Page(a_window, "Homepage")
 	this->nextPage = nullptr ;
 }
 
-
 Page* HomePage::Run()
 {
 	this->InitImGui();
@@ -76,7 +75,7 @@ void HomePage::RenderImGui()
 	ImGui_ImplOpenGL3_NewFrame();
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
-	if (ImGui::Begin("Window", false, ImGuiWindowFlags_NoTitleBar))
+	if (ImGui::Begin("Window", false, ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
 	{
 		ImGui::SetWindowSize("Window", ImVec2(this->screenWidth, this->screenHeight));
 		ImGui::SetWindowPos("Window", ImVec2(0, 0));

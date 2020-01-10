@@ -46,13 +46,13 @@ Size=400,400
 Collapsed=0
 
 [Window][Debug]
-Pos=0,280
+Pos=0,330
 Size=370,140
 Collapsed=0
 
 [Window][Brush]
 Pos=0,160
-Size=120,110
+Size=240,160
 Collapsed=0
 
 [Window][World options]
@@ -60,6 +60,15 @@ Pos=0,20
 Size=370,130
 Collapsed=0
 
+[Window][Save world file##saveWorldFile]
+Pos=60,60
+Size=960,400
+Collapsed=0
+
+[Window][Choose world file##chooseWorldFile]
+Pos=60,60
+Size=960,400
+Collapsed=0
 
 )";
 

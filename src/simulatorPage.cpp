@@ -25,7 +25,7 @@ Page* SimulatorPage::Run()
 {
 	this->InitOpenGL();
 	this->InitImGui();
-
+	
 	while (!this->closeThisPage && !glfwWindowShouldClose(this->window))
 	{
 		glfwPollEvents();
@@ -164,7 +164,7 @@ void SimulatorPage::RenderImGui()
 				ImGuiFileDialog::Instance()->OpenDialog("chooseWorldFile", "Choose world file", ".csv", "");
 			if (ImGui::MenuItem("Save"))
 				ImGuiFileDialog::Instance()->OpenDialog("saveWorldFile", "Save world file", ".csv", "");
-			if (ImGui::MenuItem("Back to menu")) 
+			if (ImGui::MenuItem("Exit to menu")) 
 			{
 				this->nextPage = new HomePage(this->window);
 				this->closeThisPage = true;
@@ -204,7 +204,7 @@ void SimulatorPage::RenderImGui()
 		if (ImGui::Button("Reset"))
 			this->worldCells.ResetSimulation();
 
-		if (ImGui::SliderFloat("Target speed", &targetSimulationSpeed, 0.01, 256, "%.2f", 5.0f))
+		if (ImGui::SliderFloat("Target speed", &targetSimulationSpeed, 0.01f, 256, "%.2f", 5.0f))
 			this->worldCells.SetTargetSpeed(targetSimulationSpeed);
 	}
 	// Legacy API style not yet fixed by ImGui
@@ -214,10 +214,36 @@ void SimulatorPage::RenderImGui()
 	{
 		if (ImGui::Begin("Brush", false, m_defaultWindowArgs))
 		{
+			ImGui::Columns(2, "", false);
+			ImGui::Text("Type");
 			ImGui::SetNextItemWidth(100);
 			if (ImGui::ListBox("", &this->selectedCellDrawName, this->cellDrawStateNames, 4))
 			{
 				this->cellDrawState = (CellState)this->selectedCellDrawName;
+			}
+			ImGui::NextColumn();
+			ImGui::Text("Brush thickness");
+			ImGui::SetNextItemWidth(100);
+			// Usage of space is required otherwise items will be added to previous list box (where the name is also "")
+			// because it will create a ImGui ID from the name.
+			if (ImGui::ListBox(" ", &this->brushRadiusSelectorPos, this->brushRadiusNames, 6))
+			{
+				// See proof below
+				this->brushRadius = (this->brushRadiusSelectorPos * 2) + 1;
+				/*
+				1
+					return ( 0 * 2) +1; = 1
+				3
+					return (1 *2) +1; = 3;
+				5
+					return (2 * 2) + 1; = 5;
+				7
+					return (3 * 2) + 1; = 7
+				9
+					return (4 * 2) + 1 = 9
+				11
+					return (5 * 2) + 1 = 11
+				*/
 			}
 		}
 		// Legacy API style not yet fixed by ImGui
@@ -308,6 +334,7 @@ void SimulatorPage::RenderImGui()
 
 void SimulatorPage::HandleInput(GLFWwindow* a_window)
 {
+#ifdef __keybinds__
 	if (glfwGetKey(a_window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(this->window, true);
 
@@ -368,27 +395,28 @@ void SimulatorPage::HandleInput(GLFWwindow* a_window)
 	else
 		m_lastPressedKey3 = false;
 
-	//if (glfwGetKey(a_window, GLFW_KEY_4) == GLFW_PRESS)
-	//{
-	//	if (!m_lastPressedKey4)
-	//	{
-	//		this->worldCells.Open("world.csv");
-	//		for (auto m_cell : this->worldCells.cells)
-	//			m_cell.second->InitRender(this->gridCellShader, this->cellVaoBuffer);
-	//	}
-	//	m_lastPressedKey4 = true;
-	//}
-	//else
-	//	m_lastPressedKey4 = false;
+	if (glfwGetKey(a_window, GLFW_KEY_4) == GLFW_PRESS)
+	{
+		if (!m_lastPressedKey4)
+		{
+			this->worldCells.Open("world.csv");
+			for (auto m_cell : this->worldCells.cells)
+				m_cell.second->InitRender(this->gridCellShader, this->cellVaoBuffer);
+		}
+		m_lastPressedKey4 = true;
+	}
+	else
+		m_lastPressedKey4 = false;
+#endif
 }
 
 void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_posY)
 {
-    long m_curCellXHovered = (((long)(this->gridLineSizeInPx + a_posX) / this->cellSizeInPx));
-	long m_curCellYHovered = (((long)(this->gridLineSizeInPx + a_posY) / this->cellSizeInPx));
+	coordinatePart m_curCellXHovered = (((coordinatePart)this->gridLineSizeInPx + a_posX) / (coordinatePart)this->cellSizeInPx);
+	coordinatePart m_curCellYHovered = (((coordinatePart)this->gridLineSizeInPx + a_posY) / (coordinatePart)this->cellSizeInPx);
 	
-	static long long m_lastCellX = 0;
-	static long long m_lastCellY = 0;
+	static coordinatePart m_lastCellX = 0;
+	static coordinatePart m_lastCellY = 0;
 	static double m_lastMouseX = 0;
 	static double m_lastMouseY = 0;
 
@@ -408,7 +436,19 @@ void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_pos
 	{
 		if (m_lastCellX != m_curCellXHovered || m_lastCellY != m_curCellYHovered)
 		{
-			this->AddCellToWorld(true);
+			this->AddCellToWorld(this->curCellHoveredX, this->curCellHoveredY);
+			// TODO. maybe calculate a border line at which we know that there are already items (from the original click event for or previous drag)
+			if (this->brushRadius > 1)
+			{
+				int m_middle = this->brushRadius / 2;
+				for (int m_xOffset = -m_middle; m_xOffset <= m_middle; m_xOffset++)
+				{
+					for (int m_yOffset = -m_middle; m_yOffset <= m_middle; m_yOffset++)
+					{
+						this->AddCellToWorld(this->curCellHoveredX + m_xOffset, (this->curCellHoveredY + m_yOffset));
+					}
+				}
+			}
 		}
 	}
 	else if (this->rightMouseButtonIsDown)
@@ -418,38 +458,20 @@ void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_pos
 			this->RemoveCellFromWorld();
 		}
 	}
-
-	// Scrolling	
+	
+	// Scrolling
 	if (this->scrollWheelButtonIsDown)
 	{
-		this->scrollDelayBuffer += 1;
-
-		double m_scrollDifferenceX = a_posX - m_lastMouseX;
-		double m_scrollDifferenceY = a_posY - m_lastMouseY;
-
-		if (this->curCellHoveredX != m_lastCellX || this->curCellHoveredY != m_lastCellY)
-		{
-			if (m_scrollDifferenceX > 0.001)
-				this->scrollOffsetX += 1;
-			else if (m_scrollDifferenceX < -0.001)
-				this->scrollOffsetX -= 1;
-
-			if (m_scrollDifferenceY > 0.001)
-				this->scrollOffsetY += 1;
-			else if (m_scrollDifferenceY < -0.001)
-				this->scrollOffsetY -= 1;
-		}
+		coordinatePart m_diffX = m_curCellXHovered - m_lastCellX;
+		coordinatePart m_diffY = m_curCellYHovered - m_lastCellY;
+		this->scrollOffsetX += m_diffX;
+		this->scrollOffsetY += m_diffY;
 	}
 
-	// These should be on the bottom as we use them to check if we changed something from frame to frame.
-	// (and therefor should always update at the end of each frame).
-	if (this->scrollDelayBuffer >= this->scrollSensitivity)
-	{
-		m_lastMouseX = a_posX;
-		m_lastMouseY = a_posY;
-		m_lastCellX = m_curCellXHovered;
-		m_lastCellY = m_curCellYHovered;
-	}
+	m_lastMouseX = a_posX;
+	m_lastMouseY = a_posY;	
+	m_lastCellX = m_curCellXHovered;
+	m_lastCellY = m_curCellYHovered;
 }
 
 void SimulatorPage::MouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods)
@@ -461,7 +483,18 @@ void SimulatorPage::MouseClick(GLFWwindow* a_window, int a_button, int a_action,
 	if (a_button == 0 && a_action == 1)
 	{
 		this->leftMouseButtonIsDown = true;
-		this->AddCellToWorld(false);
+		this->AddCellToWorld(this->curCellHoveredX, this->curCellHoveredY);
+		if (this->brushRadius > 1)
+		{
+			int m_middle = this->brushRadius / 2;
+			for (int m_xOffset = -m_middle; m_xOffset <= m_middle; m_xOffset++)
+			{
+				for (int m_yOffset = -m_middle; m_yOffset <= m_middle; m_yOffset++)
+				{
+					this->AddCellToWorld(this->curCellHoveredX + m_xOffset, (this->curCellHoveredY + m_yOffset));
+				}
+			}
+		}
 	}
 	// Left mouse button release
 	else if (a_button == 0 && a_action == 0)
@@ -559,11 +592,11 @@ void SimulatorPage::KeyPress(GLFWwindow* a_window, int a_key, int a_scancode, in
 void SimulatorPage::RenderCells()
 {
 	// Get all of the cells that are located within the viewport
-	int m_viewportOriginX = -1 - this->scrollOffsetX;
-	int m_viewportOriginY = -1 - this->scrollOffsetY;
+	coordinatePart m_viewportOriginX = -1 - this->scrollOffsetX;
+	coordinatePart m_viewportOriginY = -1 - this->scrollOffsetY;
 
-	int m_viewportWidth = (this->screenWidth / this->cellSizeInPx) + 2;
-	int m_viewportHeight = (this->screenHeight / this->cellSizeInPx) + 2;
+	long m_viewportWidth = (this->screenWidth / this->cellSizeInPx) + 2;
+	long m_viewportHeight = (this->screenHeight / this->cellSizeInPx) + 2;
 
 	std::vector<Cell*> m_cellsInViewport;
 	this->worldCells.InViewport(&m_cellsInViewport, m_viewportOriginX, m_viewportOriginY, m_viewportWidth, m_viewportHeight);
@@ -574,7 +607,7 @@ void SimulatorPage::RenderCells()
 
 	glUniformMatrix4fv(m_projectionMatrixUniform, 1, GL_FALSE, &this->projectionMatrix[0][0]);
 
-	// Render all of the worldcells
+	// Render all of the world cells
 	for (auto m_worldCell : m_cellsInViewport)
 	{
 		if(m_worldCell != nullptr)
@@ -625,29 +658,30 @@ void SimulatorPage::RenderGrid()
 	glDrawArraysInstanced(GL_LINES, 0, 2, m_lineCount + 2);
 }
 
-void SimulatorPage::AddCellToWorld(bool a_mouseIsBeingDragged)
+void SimulatorPage::AddCellToWorld(coordinatePart a_x, coordinatePart a_y)
 {
-	CellState m_cellState = this->cellDrawState; // Gets manipulated based on logic
-	// Change cell state
+	CellState m_cellState = this->cellDrawState; 
 	if (m_cellState == Background)
 		this->RemoveCellFromWorld();
 	else
 	{
 		bool m_doInit = false;
-		if (this->worldCells.TryInsertCellAt(this->curCellHoveredX, this->curCellHoveredY, m_cellState))
+		if (this->worldCells.TryInsertCellAt(a_x, a_y, m_cellState))
 			m_doInit = true;
+
 		GLint m_vaoBuffer = this->cellVaoBuffer;
 		Shader* m_shader = &this->gridCellShader;
-		this->worldCells.TryUpdateCell(this->curCellHoveredX, this->curCellHoveredY, [m_cellState, m_doInit, m_vaoBuffer, m_shader](Cell* a_foundCell) -> bool 
-		{ 
-			if (m_doInit)
-				a_foundCell->InitRender(*m_shader, m_vaoBuffer);
+		this->worldCells.TryUpdateCell(a_x, a_y, 
+			[m_cellState, m_doInit, m_vaoBuffer, m_shader](Cell* a_foundCell) -> bool 
+			{ 
+				if (m_doInit)
+					a_foundCell->InitRender(*m_shader, m_vaoBuffer);
 
-			a_foundCell->cellState = m_cellState;
-			return true;
-		});
+				a_foundCell->cellState = m_cellState;
+				return true;
+			}
+		);
 	}
-
 }
 
 void SimulatorPage::RemoveCellFromWorld()
