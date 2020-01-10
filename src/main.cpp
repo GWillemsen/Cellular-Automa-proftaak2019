@@ -1,6 +1,9 @@
 // Include libs.
 #include <thread>
 #include <iostream>
+#include <fstream>
+#include <direct.h>
+
 #include <glad\glad.h>
 #include <GLFW\glfw3.h>
 #include <math.h>
@@ -21,7 +24,9 @@
 
 #include "shader.h"
 #include "config.h"
+#include "homepage.h"
 #include "simulatorPage.h"
+#include "resources.h"
 
 // References.
 void framebuffer_size_callback(GLFWwindow* a_window, int a_width, int a_height);
@@ -38,12 +43,16 @@ void mouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods);
 void mouseScroll(GLFWwindow* a_window, double a_xOffset, double a_yOffset);
 void keyPress(GLFWwindow* a_window, int a_key, int a_scancode, int a_action, int a_mods);
 
+void createResources();
+
 Page* m_nextPage = nullptr;
 int screenWidth = 1920;
 int screenHeight = 1080;
 
 int main()
 {
+	createResources();
+
 	InitGLFW();
 
 	// ---
@@ -73,7 +82,7 @@ int main()
 	glfwSetScrollCallback(window, mouseScroll);
 	glfwSetKeyCallback(window, keyPress);
 
-	m_nextPage = new SimulatorPage(window);
+	m_nextPage = new HomePage(window);
 
 	while (m_nextPage)
 	{
@@ -116,9 +125,9 @@ GLFWwindow* CreateWindow()
 	glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
 	//glfwWindowHint(GLFW_MAXIMIZED, GLFW_FALSE);
 	glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
-	
-	GLFWwindow* window = glfwCreateWindow(800, 600, "LearnOpenGL", NULL, NULL);
-	//GLFWwindow* window = glfwCreateWindow(mode->width, mode->height, "LearnOpenGL", monitor, NULL);
+
+	//GLFWwindow* window = glfwCreateWindow(800, 600, "LearnOpenGL", NULL, NULL);
+	GLFWwindow* window = glfwCreateWindow(mode->width, mode->height, "LearnOpenGL", monitor, NULL);
 
 	// Get the resulting screen width & height
 	glfwGetWindowSize(window, &screenWidth, &screenHeight);
@@ -224,4 +233,33 @@ void keyPress(GLFWwindow* a_window, int a_key, int a_scancode, int a_action, int
 {
 	if (m_nextPage != nullptr)
 		m_nextPage->KeyPress(a_window, a_key, a_scancode, a_action, a_mods);
+}
+
+void createResources()
+{
+	auto m_resources = GetResources();
+	for (auto m_dirs : m_resources)
+	{
+		if (!m_dirs.first.empty())
+			auto _ = _mkdir(m_dirs.first.c_str());
+		for (auto m_file : m_dirs.second)
+		{
+			std::string m_separtor = "/";
+			if (m_dirs.first.empty())
+				m_separtor = "";
+			std::string m_filePath = m_dirs.first + m_separtor + m_file.first;
+
+			std::ifstream m_in(m_filePath.c_str());
+			if (!m_in.good())
+			{
+				std::ofstream m_out;
+				m_out.open(m_filePath, std::ios::out | std::ios::trunc);
+				if (m_out.is_open())
+				{
+					m_out << m_file.second;
+					m_out.close();
+				}
+			}
+		}
+	}
 }

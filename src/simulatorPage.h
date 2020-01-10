@@ -38,7 +38,7 @@ private:
 	World worldCells;
 
 	// ImGUI
-	ImGuiIO imguiIO;
+	ImGuiIO* imguiIO;
 
 	// Coordinate system
 	glm::mat4 projectionMatrix = glm::ortho(0.0f, (float)this->screenWidth, (float)this->screenHeight, 0.0f);
@@ -107,6 +107,11 @@ private:
 	CellState cellDrawState = CellState::Conductor;
 	char** cellDrawStateNames = new char* [4]{ "Conductor", "Head", "Tail", "Background" };;
 	int selectedCellDrawName = 0;
+
+	bool isInImguiWindow;
+	bool brushWindowOpen = true;
+	bool debugWindowOpen = true;
+	float targetSimulationSpeed = this->worldCells.GetTargetSpeed();
 	
 public:
 	SimulatorPage(GLFWwindow* a_window);
