@@ -47,7 +47,7 @@ Collapsed=0
 
 [Window][Debug]
 Pos=0,280
-Size=370,130
+Size=370,140
 Collapsed=0
 
 [Window][Brush]

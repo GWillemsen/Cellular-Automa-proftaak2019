@@ -1,7 +1,8 @@
 // Standard system libraries
-#include "simulatorPage.h"
 #include <string>
 #include <array>
+#include "simulatorPage.h"
+#include "homepage.h"
 
 SimulatorPage::SimulatorPage(GLFWwindow* a_window) : Page(a_window, "SimulatorPage")
 {
@@ -25,10 +26,7 @@ Page* SimulatorPage::Run()
 	this->InitOpenGL();
 	this->InitImGui();
 
-	bool m_exit = false;
-	Page* m_nextPage = nullptr;
-
-	while (!m_exit && !glfwWindowShouldClose(this->window))
+	while (!this->closeThisPage && !glfwWindowShouldClose(this->window))
 	{
 		glfwPollEvents();
 
@@ -48,7 +46,7 @@ Page* SimulatorPage::Run()
 	ImGui_ImplGlfw_Shutdown();
 	ImGui::DestroyContext();
 
-	return m_nextPage;
+	return this->nextPage;
 }
 
 // Initializes and presets all systems that render with OpenGL
@@ -116,10 +114,10 @@ void SimulatorPage::InitImGui()
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 
-	this->imguiIO = ImGui::GetIO(); (void)this->imguiIO;
+	this->imguiIO = &ImGui::GetIO(); (void)this->imguiIO;
 
 	// Enable keyboard input
-	this->imguiIO.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+	this->imguiIO->ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
 
 	ImGui::StyleColorsDark();
 
@@ -127,6 +125,7 @@ void SimulatorPage::InitImGui()
 	ImGui_ImplGlfw_InitForOpenGL(this->window, true);
 	ImGui_ImplOpenGL3_Init(this->glsl_version);
 	ImGui::LoadIniSettingsFromDisk("imgui.ini");
+	Config::instance->SetImGuiStyle(&ImGui::GetStyle());
 }
 
 void SimulatorPage::InitSimulator()
@@ -151,10 +150,9 @@ void SimulatorPage::RenderImGui()
 	ImGui_ImplOpenGL3_NewFrame();
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
-	const ImGuiWindowFlags m_defaultWindowArgs = ImGuiWindowFlags_NoCollapse;
-	static float m_targetSimulationSpeed = this->worldCells.GetTargetSpeed();
-	static bool m_brushWindowOpen = true;
-	static bool m_debugWindowOpen = true;
+
+	const ImGuiWindowFlags m_defaultWindowArgs = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize;
+	float targetSimulationSpeed = this->worldCells.GetTargetSpeed();
 	
 	if (ImGui::BeginMainMenuBar())
 	{
@@ -164,15 +162,23 @@ void SimulatorPage::RenderImGui()
 				this->worldCells.Open("world.csv");
 			if (ImGui::MenuItem("Save"))
 				this->worldCells.Save();
+			if (ImGui::MenuItem("Back to menu")) 
+			{
+				this->nextPage = new HomePage(this->window);
+				this->closeThisPage = true;
+			}
 			if (ImGui::MenuItem("Exit"))
+			{
+				this->closeThisPage = true;
 				glfwSetWindowShouldClose(this->window, 1);
+			}
 			ImGui::EndMenu();
 		}
 
 		if (ImGui::BeginMenu("View"))
 		{
-			ImGui::MenuItem("Debug window", nullptr, &m_debugWindowOpen);
-			ImGui::MenuItem("Brushes window", nullptr, &m_brushWindowOpen);
+			ImGui::MenuItem("Debug window", nullptr, &debugWindowOpen);
+			ImGui::MenuItem("Brushes window", nullptr, &brushWindowOpen);
 
 			ImGui::EndMenu();
 		}
@@ -181,20 +187,28 @@ void SimulatorPage::RenderImGui()
 	
 	if (ImGui::Begin("World options", false, m_defaultWindowArgs))
 	{
-		if (ImGui::Button("Start"))
-			this->worldCells.StartSimulation();
-		if (ImGui::Button("Stop"))
-			this->worldCells.PauzeSimulation();
+		if (this->worldCells.GetIsRunning())
+		{
+			ImGui::Text("Start");
+			if (ImGui::Button("Stop"))
+				this->worldCells.PauzeSimulation();
+		}
+		else
+		{
+			if (ImGui::Button("Start"))
+				this->worldCells.StartSimulation();
+			ImGui::Text("Stop");
+		}
 		if (ImGui::Button("Reset"))
 			this->worldCells.ResetSimulation();
 
-		if (ImGui::SliderFloat("Target speed", &m_targetSimulationSpeed, 0.01, 256, "%.2f", 5.0f))
-			this->worldCells.SetTargetSpeed(m_targetSimulationSpeed);
+		if (ImGui::SliderFloat("Target speed", &targetSimulationSpeed, 0.01, 256, "%.2f", 5.0f))
+			this->worldCells.SetTargetSpeed(targetSimulationSpeed);
 	}
 	// Legacy API style not yet fixed by ImGui
 	ImGui::End();
 
-	if (m_brushWindowOpen)
+	if (brushWindowOpen)
 	{
 		if (ImGui::Begin("Brush", false, m_defaultWindowArgs))
 		{
@@ -208,7 +222,7 @@ void SimulatorPage::RenderImGui()
 		ImGui::End();
 	}
 
-	if (m_debugWindowOpen)
+	if (debugWindowOpen)
 	{
 		if (ImGui::Begin("Debug", false, m_defaultWindowArgs))
 		{
@@ -221,6 +235,7 @@ void SimulatorPage::RenderImGui()
 			ImGui::Text("Tail: ");
 			ImGui::Text("Head: ");
 			ImGui::Text("Last update cycle time (ms): ");
+			ImGui::Text("FPS:");
 			ImGui::NextColumn();
 			if (this->worldCells.GetIsRunning())
 				ImGui::Text("Running");
@@ -232,6 +247,7 @@ void SimulatorPage::RenderImGui()
 			ImGui::Text("%i", m_cellStats[1]); // Tail count
 			ImGui::Text("%i", m_cellStats[0]); // Head count
 			ImGui::Text("%.4f", this->worldCells.lastUpdateDuration);
+			ImGui::Text("%.4f", this->imguiIO->Framerate);
 		}
 		// Legacy API style not yet fixed by ImGui
 		ImGui::End();

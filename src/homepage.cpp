@@ -46,7 +46,7 @@ Page* HomePage::Run()
 
 void HomePage::InitImGui() 
 {
-// Initializes Dear ImGui
+	// Initializes Dear ImGui
 	
 	// Setup ImGUI Context
 	IMGUI_CHECKVERSION();
@@ -63,6 +63,7 @@ void HomePage::InitImGui()
 	ImGui_ImplGlfw_InitForOpenGL(this->window, true);
 	ImGui_ImplOpenGL3_Init(this->glsl_version);
 	ImGui::LoadIniSettingsFromDisk("imgui_homepage.ini");
+	Config::instance->SetImGuiStyle(&ImGui::GetStyle());
 }
 
 void HomePage::RenderImGui() 
@@ -72,8 +73,6 @@ void HomePage::RenderImGui()
 	const char* m_wireWorldName = "Wire World";
 	const char* m_createdByText = "Created by Guylian Gilsing & Giel Willemsen";
 	const char* m_copyRight = "(C) 2020";
-	static float m_measureHeaderSize = 0;
-	
 	ImGui_ImplOpenGL3_NewFrame();
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
@@ -83,15 +82,17 @@ void HomePage::RenderImGui()
 		ImGui::SetWindowPos("Window", ImVec2(0, 0));
 		ImGui::Columns(3);
 		
-		float m_middleColumnWidth = (ImGui::GetWindowWidth() / 6) * 4;
+		ImGui::SetWindowFontScale(9);
 		float m_windowWidth = ImGui::GetWindowWidth();
-		float m_smallerSideColumnsValue = 0;
+		float m_measureHeaderSize = ImGui::CalcTextSize(m_wireWorldName).x + 5;;
+		float m_middleColumnWidth = (m_windowWidth / 6) * 4;
+		float m_sideColumnsSubstractValue = 0;
 		if(m_middleColumnWidth < m_measureHeaderSize)
 		{
-			m_smallerSideColumnsValue = ( m_measureHeaderSize - m_middleColumnWidth) / 2;
+			m_sideColumnsSubstractValue = ( m_measureHeaderSize - m_middleColumnWidth) / 2;
 			m_middleColumnWidth = m_measureHeaderSize + 5;
 		}
-		float m_smallColWidth = (ImGui::GetWindowWidth() / 6) - m_smallerSideColumnsValue;
+		float m_smallColWidth = (m_windowWidth / 6) - m_sideColumnsSubstractValue;
 		ImGui::SetColumnWidth(0, m_smallColWidth);
 		ImGui::SetColumnWidth(1, m_middleColumnWidth);
 		ImGui::SetColumnWidth(2, m_smallColWidth);
@@ -103,17 +104,14 @@ void HomePage::RenderImGui()
 		ImGui::NewLine();
 		ImGui::NewLine();
 		// in second column, each in one row
-		ImGui::SetWindowFontScale(9);
-		float m_textWidth = ImGui::CalcTextSize(m_wireWorldName).x + 5;
-		m_measureHeaderSize = m_textWidth;
-		ImGui::SameLine((m_middleColumnWidth - m_textWidth) / 2);
+		ImGui::SameLine((m_middleColumnWidth - m_measureHeaderSize) / 2);
 		ImGui::Text(m_wireWorldName);
 
 		// next row
 		// Pad something extra
 		ImGui::NewLine();
 		ImGui::SetWindowFontScale(2);
-		m_textWidth = ImGui::CalcTextSize(m_createdByText).x;
+		float m_textWidth = ImGui::CalcTextSize(m_createdByText).x;
 		ImGui::SameLine((m_middleColumnWidth - m_textWidth) / 2);
 		ImGui::Text(m_createdByText);
 			
