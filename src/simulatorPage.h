@@ -90,6 +90,8 @@ private:
 	// Grid system
 	long curCellHoveredX = 0;
 	long curCellHoveredY = 0;
+	int scrollDelayBuffer = 0;
+	int scrollSensitivity = 100;
 
 	long scrollOffsetX = 0;
 	long scrollOffsetY = 0;

@@ -422,6 +422,8 @@ void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_pos
 	// Scrolling	
 	if (this->scrollWheelButtonIsDown)
 	{
+		this->scrollDelayBuffer += 1;
+
 		double m_scrollDifferenceX = a_posX - m_lastMouseX;
 		double m_scrollDifferenceY = a_posY - m_lastMouseY;
 
@@ -441,10 +443,13 @@ void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_pos
 
 	// These should be on the bottom as we use them to check if we changed something from frame to frame.
 	// (and therefor should always update at the end of each frame).
-	m_lastMouseX = a_posX;
-	m_lastMouseY = a_posY;
-	m_lastCellX = m_curCellXHovered;
-	m_lastCellY = m_curCellYHovered;
+	if (this->scrollDelayBuffer >= this->scrollSensitivity)
+	{
+		m_lastMouseX = a_posX;
+		m_lastMouseY = a_posY;
+		m_lastCellX = m_curCellXHovered;
+		m_lastCellY = m_curCellYHovered;
+	}
 }
 
 void SimulatorPage::MouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods)
