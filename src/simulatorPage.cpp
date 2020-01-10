@@ -512,6 +512,8 @@ void SimulatorPage::MouseScroll(GLFWwindow* a_window, double a_xOffset, double a
 
 void SimulatorPage::KeyPress(GLFWwindow* a_window, int a_key, int a_scancode, int a_action, int a_mods)
 {
+	if (!this->manuallyAddKeycodesToImgui)
+		return;
 	if (a_key <= CHAR_MAX)
 	{
 		if (a_mods == 0) // No modifier
@@ -550,9 +552,6 @@ void SimulatorPage::KeyPress(GLFWwindow* a_window, int a_key, int a_scancode, in
 			else if (a_key == 61)
 				a_key = 43;
 		}
-	
-		//const std::wstring wide_string = std::wstring((wchar_t)a_key);
-		//convert
 		this->imguiIO->AddInputCharacter((char)a_key);
 	}
 }

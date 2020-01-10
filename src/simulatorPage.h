@@ -96,8 +96,6 @@ private:
 	long scrollOffsetX = 0;
 	long scrollOffsetY = 0;
 
-	const char* brushState = "auto";
-
 	bool leftMouseButtonIsDown = false;
 	bool rightMouseButtonIsDown = false;
 	bool scrollWheelButtonIsDown = false;
@@ -112,6 +110,7 @@ private:
 	bool brushWindowOpen = true;
 	bool debugWindowOpen = true;
 	float targetSimulationSpeed = this->worldCells.GetTargetSpeed();
+	bool manuallyAddKeycodesToImgui = false;
 	
 public:
 	SimulatorPage(GLFWwindow* a_window);
