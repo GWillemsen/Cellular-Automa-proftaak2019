@@ -159,7 +159,6 @@ void SimulatorPage::RenderImGui()
 	
 	static bool m_brushWindowOpen = true;
 	static bool m_debugWindowOpen = true;
-	static bool m_saveWorldWindowOpen = false;
 	
 	if (ImGui::BeginMainMenuBar())
 	{
@@ -168,7 +167,7 @@ void SimulatorPage::RenderImGui()
 			if (ImGui::MenuItem("Open"))
 				ImGuiFileDialog::Instance()->OpenDialog("chooseWorldFile", "Choose world file", ".csv", "");
 			if (ImGui::MenuItem("Save"))
-				m_saveWorldWindowOpen = true;
+				ImGuiFileDialog::Instance()->OpenDialog("saveWorldFile", "Save world file", ".csv", "world.csv");
 			if (ImGui::MenuItem("Exit"))
 				glfwSetWindowShouldClose(this->window, 1);
 
@@ -244,25 +243,6 @@ void SimulatorPage::RenderImGui()
 	}
 	this->isInImguiWindow = ImGui::IsAnyWindowHovered();
 
-	if (m_saveWorldWindowOpen)
-	{
-		if (ImGui::Begin("Save World", false, m_defaultWindowArgs))
-		{
-			ImGui::InputText("Author Name", &this->worldCells.author[0], this->worldCells.author.length());
-			ImGui::InputText("World Name", &this->worldCells.name[0], this->worldCells.name.length());
-			ImGui::InputText("Description", &this->worldCells.description[0], this->worldCells.description.length());
-			
-			if (ImGui::Button("Save", ImVec2(0, 0)))
-			{
-				this->worldCells.filePath = this->worldCells.name + ".csv\0";
-				this->worldCells.Save();
-				m_saveWorldWindowOpen = false;
-			}
-		}
-		// Legacy API style not yet fixed by ImGui
-		ImGui::End();
-	}
-
 	// Display the choose file browser dialog
 	if (ImGuiFileDialog::Instance()->FileDialog("chooseWorldFile"))
 	{
@@ -283,6 +263,27 @@ void SimulatorPage::RenderImGui()
 
 		// close
 		ImGuiFileDialog::Instance()->CloseDialog("chooseWorldFile");
+	}
+
+	// Display the choose file browser dialog
+	if (ImGuiFileDialog::Instance()->FileDialog("saveWorldFile"))
+	{
+		// IF the action is OK we will get the chosen file from the file dialog
+		if (ImGuiFileDialog::Instance()->IsOk == true)
+		{
+			// Get the path and name of the file and open it with the world.h API
+			std::string m_filePathName = ImGuiFileDialog::Instance()->GetFilepathName();
+
+			// Save the file
+			if (m_filePathName != "")
+			{
+				this->worldCells.filePath = m_filePathName;
+				this->worldCells.Save();
+			}
+		}
+
+		// close
+		ImGuiFileDialog::Instance()->CloseDialog("saveWorldFile");
 	}
 
 	ImGui::Render();
@@ -532,7 +533,6 @@ void SimulatorPage::KeyPress(GLFWwindow* a_window, int a_key, int a_scancode, in
 				a_key = 43;
 		}
 	
-		std::cout << "char val: " << (char)a_key << " " << a_key << " " << a_mods << std::endl;
 		//const std::wstring wide_string = std::wstring((wchar_t)a_key);
 		//convert
 		this->imguiIO.AddInputCharacter((char)a_key);
