@@ -41,6 +41,7 @@ unsigned int CreateEBO(unsigned int* indices, int a_indiceCount);
 void mouseHover(GLFWwindow* a_window, double a_posX, double a_posY);
 void mouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods);
 void mouseScroll(GLFWwindow* a_window, double a_xOffset, double a_yOffset);
+void keyPress(GLFWwindow* a_window, int a_key, int a_scancode, int a_action, int a_mods);
 
 void createResources();
 
@@ -79,6 +80,7 @@ int main()
 	glfwSetMouseButtonCallback(window, mouseClick); // Catches the mouse click event
 	glfwSetCursorPosCallback(window, mouseHover); // Catches the mouse move event
 	glfwSetScrollCallback(window, mouseScroll);
+	glfwSetKeyCallback(window, keyPress);
 
 	m_nextPage = new HomePage(window);
 
@@ -123,7 +125,6 @@ GLFWwindow* CreateWindow()
 	glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
 	//glfwWindowHint(GLFW_MAXIMIZED, GLFW_FALSE);
 	glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
-	//glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
 	//GLFWwindow* window = glfwCreateWindow(800, 600, "LearnOpenGL", NULL, NULL);
 	GLFWwindow* window = glfwCreateWindow(mode->width, mode->height, "LearnOpenGL", monitor, NULL);
@@ -226,6 +227,12 @@ void mouseScroll(GLFWwindow* a_window, double a_xOffset, double a_yOffset)
 {
 	if (m_nextPage != nullptr)
 		m_nextPage->MouseScroll(a_window, a_xOffset, a_yOffset);
+}
+
+void keyPress(GLFWwindow* a_window, int a_key, int a_scancode, int a_action, int a_mods)
+{
+	if (m_nextPage != nullptr)
+		m_nextPage->KeyPress(a_window, a_key, a_scancode, a_action, a_mods);
 }
 
 void createResources()

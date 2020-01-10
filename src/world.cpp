@@ -662,7 +662,7 @@ bool World::TryInsertCellAt(coordinatePart a_cellX, coordinatePart a_cellY, Cell
 	return true;
 }
 
-bool World::UpdateCellState(coordinatePart a_cellX, coordinatePart a_cellY, std::function<bool (Cell*)> a_updater)
+bool World::TryUpdateCell(coordinatePart a_cellX, coordinatePart a_cellY, std::function<bool (Cell*)> a_updater)
 {
 	this->cellsEditLock.lock_shared();
 	auto m_found = this->cells.find(std::make_pair(a_cellX, a_cellY));

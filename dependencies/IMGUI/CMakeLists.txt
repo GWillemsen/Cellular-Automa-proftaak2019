@@ -12,4 +12,7 @@ imstb_truetype.h
 imgui_impl_glfw.cpp
 imgui_impl_glfw.h
 imgui_impl_opengl3.cpp
-imgui_impl_opengl3.h)
+imgui_impl_opengl3.h
+# ImGui Addons
+ImGuiFileDialog.cpp
+)

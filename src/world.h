@@ -30,8 +30,6 @@ private:
 			};
 	};
 
-	std::string filePath;
-
 	std::thread timerThread;
 	std::mutex simCalcUpdateLock;
 	std::condition_variable simCalcUpdate;
@@ -63,7 +61,7 @@ public:
 	generationType currentGeneration = 0;
 	float lastUpdateDuration = 0;
 
-
+	std::string filePath;
 	std::string description;
 	std::string author;
 	std::string name;
@@ -99,7 +97,7 @@ public:
 	float GetTargetSpeed() { return this->targetSimulationSpeed; };
 
 	Cell* GetCopyOfCellAt(coordinatePart a_cellX, coordinatePart a_cellY);
-	bool UpdateCellState(coordinatePart a_cellX, coordinatePart a_cellY, std::function<bool (Cell*)> a_updater);
+	bool TryUpdateCell(coordinatePart a_cellX, coordinatePart a_cellY, std::function<bool (Cell*)> a_updater);
 	bool TryInsertCellAt(coordinatePart a_cellX, coordinatePart a_cellY, CellState a_state);
 	void LoadBlockAt(PremadeBlock a_premadeBlock, coordinatePart a_cellX, coordinatePart a_cellY);
 	void InViewport(std::vector<Cell*>* a_output, coordinatePart a_x, coordinatePart a_y, unsigned int a_width, unsigned int a_height);

@@ -17,6 +17,9 @@
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
+// Dear ImGui Addons
+#include <ImGuiFileDialog.h>
+
 // Class header files
 #include "page.h"
 #include "world.h"
@@ -97,14 +100,12 @@ private:
 	bool rightMouseButtonIsDown = false;
 	bool scrollWheelButtonIsDown = false;
 
-	// GUI (Dear ImGUI)
-	bool fileMenuItemFileIsClicked = false;
-
 	// The cell state that the mouse will draw in
 	CellState cellDrawState = CellState::Conductor;
 	char** cellDrawStateNames = new char* [4]{ "Conductor", "Head", "Tail", "Background" };;
 	int selectedCellDrawName = 0;
 
+	// GUI (Dear ImGUI)
 	bool isInImguiWindow;
 	bool brushWindowOpen = true;
 	bool debugWindowOpen = true;
@@ -129,6 +130,7 @@ private:
 	void MouseHover(GLFWwindow* a_window, double a_posX, double a_posY);
 	void MouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods);
 	void MouseScroll(GLFWwindow* a_window, double a_xOffset, double a_yOffset);
+	void KeyPress(GLFWwindow* a_window, int a_key, int a_scancode, int a_action, int a_mods);
 
 	// Grid
 	void RenderGrid();
@@ -136,9 +138,6 @@ private:
 
 	void AddCellToWorld(bool a_mouseIsBeingDragged);
 	void RemoveCellFromWorld();
-
-	// ImGui
-	void CheckGuiActions();
 };
 
 #endif
