@@ -203,6 +203,9 @@ void SimulatorPage::RenderImGui()
 		if (ImGui::Button("Reset"))
 			this->worldCells.ResetSimulation();
 
+		if (ImGui::Button("Clear head and tails to conductors"))
+			this->worldCells.ResetToConductors();
+
 		if (ImGui::SliderFloat("Target speed", &targetSimulationSpeed, 0.01f, 256, "%.2f", 5.0f))
 			this->worldCells.SetTargetSpeed(targetSimulationSpeed);
 	}
@@ -463,7 +466,7 @@ void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_pos
 	{
 		if (m_lastCellX != m_curCellXHovered || m_lastCellY != m_curCellYHovered)
 		{
-			this->RemoveCellFromWorld();
+			this->RemoveCellFromWorld(this->curCellHoveredX, this->curCellHoveredY);
 		}
 	}
 	
@@ -514,7 +517,7 @@ void SimulatorPage::MouseClick(GLFWwindow* a_window, int a_button, int a_action,
 	if (a_button == 1 && a_action == 1)
 	{
 		this->rightMouseButtonIsDown = true;
-		this->RemoveCellFromWorld();
+		this->RemoveCellFromWorld(this->curCellHoveredX, this->curCellHoveredY);
 	}
 	// Right mouse button release
 	else if (a_button == 1 && a_action == 0)
@@ -676,7 +679,7 @@ void SimulatorPage::AddCellToWorld(coordinatePart a_x, coordinatePart a_y)
 {
 	CellState m_cellState = this->cellDrawState; 
 	if (m_cellState == Background)
-		this->RemoveCellFromWorld();
+		this->RemoveCellFromWorld(a_x, a_y);
 	else
 	{
 		bool m_doInit = false;
@@ -698,7 +701,7 @@ void SimulatorPage::AddCellToWorld(coordinatePart a_x, coordinatePart a_y)
 	}
 }
 
-void SimulatorPage::RemoveCellFromWorld()
+void SimulatorPage::RemoveCellFromWorld(coordinatePart a_x, coordinatePart a_y)
 {
-	this->worldCells.TryDeleteCell(this->curCellHoveredX, this->curCellHoveredY);
+	this->worldCells.TryDeleteCell(a_x, a_y);
 }

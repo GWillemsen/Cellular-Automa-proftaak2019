@@ -142,7 +142,7 @@ private:
 	void RenderCells();
 
 	void AddCellToWorld(coordinatePart a_x, coordinatePart a_y);
-	void RemoveCellFromWorld();
+	void RemoveCellFromWorld(coordinatePart a_x, coordinatePart a_y);
 };
 
 #endif

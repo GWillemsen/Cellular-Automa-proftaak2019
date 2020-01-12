@@ -769,19 +769,47 @@ std::array<cellCountType, 3> World::GetStatistics()
 std::pair<coordinatePart, coordinatePart> World::GetTopLeftCoordinates()
 {
 	this->cellsEditLock.lock_shared();
-	auto m_begining = this->cells.cbegin();
+	auto m_beginning = this->cells.cbegin();
 	auto m_ending = this->cells.cend();
 	coordinatePart m_minX = std::numeric_limits<coordinatePart>::max();
 	coordinatePart m_minY = std::numeric_limits<coordinatePart>::max();
 	
-	while (m_begining != m_ending)
+	while (m_beginning != m_ending)
 	{
-		if (m_begining->second->y < m_minY)
-			m_minY = m_begining->second->y;
-		if (m_begining->second->x < m_minX)
-			m_minX = m_begining->second->x;
-		std::advance(m_begining, 1);
+		if (m_beginning->second->y < m_minY)
+			m_minY = m_beginning->second->y;
+		if (m_beginning->second->x < m_minX)
+			m_minX = m_beginning->second->x;
+		std::advance(m_beginning, 1);
 	}
 	this->cellsEditLock.unlock_shared();
 	return std::make_pair(m_minX, m_minY);
+}
+
+void World::ResetToConductors()
+{
+	this->cellsEditLock.lock();
+	auto m_beginning = this->cells.begin();
+	auto m_ending = this->cells.end();
+	while (m_beginning != m_ending)
+	{
+		Cell* m_cell = m_beginning->second;
+		if (m_cell->cellState != Conductor && m_cell->cellState != Background)
+		{
+			// Remove from stats
+			if (m_cell->cellState == Head && this->cellStatistics[0] > 0)
+				this->cellStatistics[0] -= 1;
+			else if (m_cell->cellState == Tail && this->cellStatistics[1] > 0)
+				this->cellStatistics[1] -= 1;
+
+			// Actually change the cell state
+			if (m_cell->cellState < Background)
+				m_cell->cellState = Conductor;
+
+			// Count the new conductor
+			this->cellStatistics[2] += 1;
+		}
+		std::advance(m_beginning, 1);
+	}
+	this->cellsEditLock.unlock();
 }
