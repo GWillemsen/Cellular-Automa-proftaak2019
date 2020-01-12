@@ -111,6 +111,7 @@ private:
 	// GUI (Dear ImGUI)
 	bool isInImguiWindow;
 	bool brushWindowOpen = true;
+	bool pixeledView = false;
 	bool debugWindowOpen = true;
 	float targetSimulationSpeed = this->worldCells.GetTargetSpeed();
 	bool manuallyAddKeycodesToImgui = false;

@@ -105,6 +105,7 @@ public:
 
 	bool GetIsRunning() { return !this->pauzeSimulation; };
 	std::array<cellCountType, 3> GetStatistics();
+	std::pair<coordinatePart, coordinatePart> GetTopLeftCoordinates();
 };
 
 #endif // !__WORLD__

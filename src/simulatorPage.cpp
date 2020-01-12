@@ -181,7 +181,6 @@ void SimulatorPage::RenderImGui()
 		{
 			ImGui::MenuItem("Debug window", nullptr, &debugWindowOpen);
 			ImGui::MenuItem("Brushes window", nullptr, &brushWindowOpen);
-
 			ImGui::EndMenu();
 		}
 		ImGui::EndMainMenuBar();
@@ -215,8 +214,12 @@ void SimulatorPage::RenderImGui()
 		if (ImGui::Begin("Brush", false, m_defaultWindowArgs))
 		{
 			ImGui::Columns(2, "", false);
+			bool m_preState = ImGui::IsItemClicked(0);
 			ImGui::Text("Type");
 			ImGui::SetNextItemWidth(100);
+			if (ImGui::IsItemClicked() != m_preState && !m_preState)
+				this->pixeledView = !this->pixeledView;
+
 			if (ImGui::ListBox("", &this->selectedCellDrawName, this->cellDrawStateNames, 4))
 			{
 				this->cellDrawState = (CellState)this->selectedCellDrawName;
@@ -298,6 +301,10 @@ void SimulatorPage::RenderImGui()
 			// Initialize the rendering of all the newly added cells
 			for (auto m_cell : this->worldCells.cells)
 				m_cell.second->InitRender(this->gridCellShader, this->cellVaoBuffer);
+
+			auto m_topLeft = this->worldCells.GetTopLeftCoordinates();
+			this->scrollOffsetX = -(m_topLeft.first - 1);
+			this->scrollOffsetY = -(m_topLeft.second - 2);
 		}
 
 		// close
@@ -412,8 +419,9 @@ void SimulatorPage::HandleInput(GLFWwindow* a_window)
 
 void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_posY)
 {
-	coordinatePart m_curCellXHovered = (((coordinatePart)this->gridLineSizeInPx + a_posX) / (coordinatePart)this->cellSizeInPx);
-	coordinatePart m_curCellYHovered = (((coordinatePart)this->gridLineSizeInPx + a_posY) / (coordinatePart)this->cellSizeInPx);
+	int m_cellSizeInPx = this->pixeledView ? 1 : this->cellSizeInPx;
+	coordinatePart m_curCellXHovered = (((coordinatePart)this->gridLineSizeInPx + a_posX) / (coordinatePart)m_cellSizeInPx);
+	coordinatePart m_curCellYHovered = (((coordinatePart)this->gridLineSizeInPx + a_posY) / (coordinatePart)m_cellSizeInPx);
 	
 	static coordinatePart m_lastCellX = 0;
 	static coordinatePart m_lastCellY = 0;
@@ -595,10 +603,13 @@ void SimulatorPage::RenderCells()
 	coordinatePart m_viewportOriginX = -1 - this->scrollOffsetX;
 	coordinatePart m_viewportOriginY = -1 - this->scrollOffsetY;
 
-	long m_viewportWidth = (this->screenWidth / this->cellSizeInPx) + 2;
-	long m_viewportHeight = (this->screenHeight / this->cellSizeInPx) + 2;
+	int m_cellSizeInPx = this->pixeledView ? 1 : this->cellSizeInPx;
 
-	std::vector<Cell*> m_cellsInViewport;
+	long m_viewportWidth = (this->screenWidth / m_cellSizeInPx) + 2;
+	long m_viewportHeight = (this->screenHeight / m_cellSizeInPx) + 2;
+
+	static std::vector<Cell*> m_cellsInViewport;
+	m_cellsInViewport.clear();
 	this->worldCells.InViewport(&m_cellsInViewport, m_viewportOriginX, m_viewportOriginY, m_viewportWidth, m_viewportHeight);
 
 	// Set the projection matrix
@@ -611,12 +622,15 @@ void SimulatorPage::RenderCells()
 	for (auto m_worldCell : m_cellsInViewport)
 	{
 		if(m_worldCell != nullptr)
-			m_worldCell->Render(this->cellSizeInPx, this->scrollOffsetX, this->scrollOffsetY);
+			m_worldCell->Render(m_cellSizeInPx, this->scrollOffsetX, this->scrollOffsetY);
 	}
 }
 
 void SimulatorPage::RenderGrid()
 {
+	if (this->pixeledView)
+		return;
+
 	this->gridLineShader.use();
 	
 	// Get the uniforms

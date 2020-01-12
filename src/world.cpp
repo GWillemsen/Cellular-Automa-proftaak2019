@@ -219,7 +219,7 @@ void World::Save()
 	m_out.write(&this->author[0], this->author.length());
 	m_out.write(",\"", 1);
 	m_out.write(&this->description[0], this->description.length());
-	m_out.write("\"\n", 1);
+	m_out.write("\"\n", 2);
 
 	this->cellsEditLock.lock();
 	auto m_start = this->cells.begin();
@@ -706,7 +706,7 @@ void World::InViewport(std::vector<Cell*>* a_output, coordinatePart a_x, coordin
 	long m_preCalcSize = (a_width * a_height) / 4;
 	if (m_preCalcSize > 20)
 		m_preCalcSize = 20;
-	a_output->resize(a_output->size() + m_preCalcSize);
+	a_output->reserve(a_output->size() + m_preCalcSize);
 
 	this->cellsEditLock.lock_shared();
 	auto m_iterator = this->cells.begin();
@@ -764,4 +764,24 @@ coordinatePart World::ParseCoordinatePartFromString(char* a_input, std::string::
 std::array<cellCountType, 3> World::GetStatistics()
 {
 	return std::array<cellCountType, 3>{ this->cellStatistics[0], this->cellStatistics[1], this->cellStatistics[2] };
+}
+
+std::pair<coordinatePart, coordinatePart> World::GetTopLeftCoordinates()
+{
+	this->cellsEditLock.lock_shared();
+	auto m_begining = this->cells.cbegin();
+	auto m_ending = this->cells.cend();
+	coordinatePart m_minX = std::numeric_limits<coordinatePart>::max();
+	coordinatePart m_minY = std::numeric_limits<coordinatePart>::max();
+	
+	while (m_begining != m_ending)
+	{
+		if (m_begining->second->y < m_minY)
+			m_minY = m_begining->second->y;
+		if (m_begining->second->x < m_minX)
+			m_minX = m_begining->second->x;
+		std::advance(m_begining, 1);
+	}
+	this->cellsEditLock.unlock_shared();
+	return std::make_pair(m_minX, m_minY);
 }
