@@ -25,6 +25,8 @@ void World::LoadFile()
 
 	// Read the header
 	std::getline(m_in, m_buffer); // Line breaker is implicitly defined using a function overload to '\n'
+	this->PauzeSimulation();
+	this->EmptyWorld();
 	auto m_worldNamePart = m_buffer.find(",", 0);
 	if (m_worldNamePart > 0)
 	{
@@ -33,10 +35,12 @@ void World::LoadFile()
 		auto m_authorPart = m_buffer.find(",", m_worldNamePart);
 		this->author = m_buffer.substr(m_worldNamePart, m_authorPart - m_worldNamePart);
 		m_authorPart++;
-		this->description = m_buffer.substr(m_authorPart, m_buffer.length() - m_authorPart);
+		auto m_descriptionPart = m_buffer.find(",", m_authorPart);
+		this->description = m_buffer.substr(m_authorPart, m_descriptionPart - m_authorPart);
+		m_descriptionPart++;
+		std::string m_currentGenerationData = m_buffer.substr(m_descriptionPart, m_buffer.length() - m_descriptionPart);
+		this->loadedWorldGenerationOffset = std::stoull(m_currentGenerationData);
 	}
-
-	this->EmptyWorld();
 	// Evaluates to true while it a success
 	while (std::getline(m_in, m_buffer))
 	{
@@ -217,9 +221,13 @@ void World::Save()
 	m_out.write(&this->name[0], this->name.length());
 	m_out.write(",", 1);
 	m_out.write(&this->author[0], this->author.length());
-	m_out.write(",\"", 1);
+	m_out.write(",", 1);
 	m_out.write(&this->description[0], this->description.length());
-	m_out.write("\"\n", 2);
+	m_out.write(",", 1);
+	unsigned long long m_toWriteGeneration = this->GetDisplayGeneration();
+	auto m_str = std::to_string(m_toWriteGeneration);
+	m_out.write(m_str.c_str(), m_str.length());
+	m_out.write("\n", 2);
 
 	this->cellsEditLock.lock();
 	auto m_start = this->cells.begin();
@@ -812,4 +820,10 @@ void World::ResetToConductors()
 		std::advance(m_beginning, 1);
 	}
 	this->cellsEditLock.unlock();
+}
+
+
+unsigned long long World::GetDisplayGeneration()
+{
+	return this->currentGeneration + this->loadedWorldGenerationOffset;
 }

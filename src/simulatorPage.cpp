@@ -270,6 +270,7 @@ void SimulatorPage::RenderImGui()
 			ImGui::Text("Head: ");
 			ImGui::Text("Last update cycle time (ms): ");
 			ImGui::Text("FPS:");
+			ImGui::Text("Generation:");
 			ImGui::NextColumn();
 			if (this->worldCells.GetIsRunning())
 				ImGui::Text("Running");
@@ -282,6 +283,7 @@ void SimulatorPage::RenderImGui()
 			ImGui::Text("%i", m_cellStats[0]); // Head count
 			ImGui::Text("%.4f", this->worldCells.lastUpdateDuration);
 			ImGui::Text("%.4f", this->imguiIO->Framerate);
+			ImGui::Text("%i", this->worldCells.GetDisplayGeneration());
 		}
 		// Legacy API style not yet fixed by ImGui
 		ImGui::End();

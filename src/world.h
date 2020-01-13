@@ -55,10 +55,11 @@ private:
 	std::shared_mutex cellsEditLock;
 
 	cellCountType cellStatistics[3] = { 0,0,0 };
+	generationType currentGeneration = 0;
+	generationType loadedWorldGenerationOffset = 0;
 public:
 	std::map<std::pair<coordinatePart, coordinatePart>, Cell*> cells;
 
-	generationType currentGeneration = 0;
 	float lastUpdateDuration = 0;
 
 	std::string filePath;
@@ -107,6 +108,7 @@ public:
 	std::array<cellCountType, 3> GetStatistics();
 	std::pair<coordinatePart, coordinatePart> GetTopLeftCoordinates();
 	void ResetToConductors();
+	generationType GetDisplayGeneration();
 };
 
 #endif // !__WORLD__
