@@ -14,11 +14,13 @@ SimulatorPage::SimulatorPage(GLFWwindow* a_window) : Page(a_window, "SimulatorPa
 	this->gridLineShader.setVertexShader("shaders/gridLineVertexShader.glsl");
 	this->gridLineShader.setFragmentShader("shaders/basicFragmentShader.glsl");
 	this->gridLineShader.compile();
+	this->GetError(__LINE__);
 
 	// Compile the gridCell shader, this shader is going to be used to render the grid cells
 	this->gridCellShader.setVertexShader("shaders/gridCellVertexShader.glsl");
 	this->gridCellShader.setFragmentShader("shaders/basicFragmentShader.glsl");
 	this->gridCellShader.compile();
+	this->GetError(__LINE__);
 }
 
 Page* SimulatorPage::Run()
@@ -60,6 +62,7 @@ void SimulatorPage::InitOpenGL()
 	glGenVertexArrays(1, &this->cellVaoBuffer);
 	glGenBuffers(1, &this->cellVboBuffer);
 	glGenBuffers(1, &this->cellEboBuffer);
+	glGenBuffers(1, &this->cellOffsetBuffer);
 
 	glBindVertexArray(this->cellVaoBuffer);
 	
@@ -72,7 +75,16 @@ void SimulatorPage::InitOpenGL()
 
 	// Define the data layout for the GPU
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2), (void*)0);
+
+	// Define instance data
+	glBindBuffer(GL_ARRAY_BUFFER, this->cellOffsetBuffer);
+	glEnableVertexAttribArray(2);
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (GLvoid*)0); // Each element is a GL_FLOAT, they make a glm::vec2 with 2 elements, and the pointer
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glVertexAttribDivisor(2, 1); // One glm:vec2 at a time
+
 	glEnableVertexAttribArray(0);
+
 
 	// Initialize grid line buffers
 	glGenVertexArrays(1, &this->gridHorizontalLineVaoBuffer);
@@ -617,17 +629,33 @@ void SimulatorPage::RenderCells()
 	m_cellsInViewport.clear();
 	this->worldCells.InViewport(&m_cellsInViewport, m_viewportOriginX, m_viewportOriginY, m_viewportWidth, m_viewportHeight);
 
+	//set offsets
+	glBindBuffer(GL_ARRAY_BUFFER, this->cellOffsetBuffer);
+	glm::vec2 m_cellOffset[64];
+	for (int i = 0; i < 64; i++)
+		m_cellOffset[i] = glm::vec2(1.0f, 1.0f);
+
+	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec2) * 64, &m_cellOffset[0], GL_DYNAMIC_DRAW);
+
 	// Set the projection matrix
 	this->gridCellShader.use();
 	int m_projectionMatrixUniform = this->gridCellShader.getUniformLocation("u_ProjectionMatrix");
 
 	glUniformMatrix4fv(m_projectionMatrixUniform, 1, GL_FALSE, &this->projectionMatrix[0][0]);
-
+	//glBindVertexArray(this->cellVaoBuffer);
 	// Render all of the world cells
+	int m_pendingCellRenders = 0;
 	for (auto m_worldCell : m_cellsInViewport)
 	{
 		if(m_worldCell != nullptr)
-			m_worldCell->Render(m_cellSizeInPx, this->scrollOffsetX, this->scrollOffsetY);
+		{
+			glBindVertexArray(this->cellVaoBuffer);
+			m_worldCell->Render(m_cellSizeInPx, this->scrollOffsetX, this->scrollOffsetY, &m_cellOffset[m_pendingCellRenders++]);
+			glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec2) * 64, &m_cellOffset[0], GL_DYNAMIC_DRAW);
+			glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0, 1);
+			glBindVertexArray(0);
+			m_pendingCellRenders = 0;
+		}
 	}
 }
 

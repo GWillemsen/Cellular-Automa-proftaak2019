@@ -70,6 +70,8 @@ private:
 		glm::vec2(0.0f, this->screenHeight),
 	};
 
+	glm::vec2 cellOffsets[64];
+
 	// OpenGL objects
 
 	// Cell rendering
@@ -79,6 +81,7 @@ private:
 	GLuint cellVaoBuffer = -1;
 	GLuint cellVboBuffer = -1;
 	GLuint cellEboBuffer = -1;
+	GLuint cellOffsetBuffer = -1;
 
 	// Grid line rendering
 	GLuint gridHorizontalLineVaoBuffer = -1; // Horizontal line rendering

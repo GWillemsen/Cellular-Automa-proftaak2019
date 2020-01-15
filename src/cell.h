@@ -55,7 +55,7 @@ public:
 	}
 
 	void InitRender(Shader a_shader, GLuint a_vaoBufferId);
-	void Render(int a_cellSizeInPx, coordinatePart a_scrollOffsetX, coordinatePart a_scrollOffsetY);
+	void Render(int a_cellSizeInPx, coordinatePart a_scrollOffsetX, coordinatePart a_scrollOffsetY, glm::vec2* a_offset);
 };
 
 #endif // __CELL__

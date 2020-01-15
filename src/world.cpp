@@ -41,6 +41,7 @@ void World::LoadFile()
 		std::string m_currentGenerationData = m_buffer.substr(m_descriptionPart, m_buffer.length() - m_descriptionPart);
 		this->loadedWorldGenerationOffset = std::stoull(m_currentGenerationData);
 	}
+	m_buffer.clear();
 	// Evaluates to true while it a success
 	while (std::getline(m_in, m_buffer))
 	{
@@ -65,6 +66,7 @@ void World::LoadFile()
 			m_readState = CellState::Background;
 
 		this->TryInsertCellAt(m_readX, m_readY, (CellState)m_readState);
+		m_buffer.clear();
 	}
 	m_in.close();
 }
@@ -227,7 +229,7 @@ void World::Save()
 	unsigned long long m_toWriteGeneration = this->GetDisplayGeneration();
 	auto m_str = std::to_string(m_toWriteGeneration);
 	m_out.write(m_str.c_str(), m_str.length());
-	m_out.write("\n", 2);
+	m_out.write("\n", 1);
 
 	this->cellsEditLock.lock();
 	auto m_start = this->cells.begin();
@@ -237,7 +239,7 @@ void World::Save()
 		if (m_start->second->cellState == Background)
 			continue;
 		std::string m_x = std::to_string(m_start->second->x);
-		m_out.write(&m_x[0], m_x.length());
+		m_out.write(&(m_x[0]), m_x.length());
 		m_out.write(",", 1);
 		
 		std::string m_y = std::to_string(m_start->second->y);
@@ -245,7 +247,7 @@ void World::Save()
 		m_out.write(",", 1);
 		
 		std::string m_state = std::to_string((int)m_start->second->cellState);
-		m_out.write(&m_state[0], m_state.length());
+		m_out.write(&(m_state[0]), m_state.length());
 		m_out.write("\n", 1);
 
 		std::advance(m_start, 1);
