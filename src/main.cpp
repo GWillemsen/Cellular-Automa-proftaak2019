@@ -29,8 +29,8 @@
 #include "resources.h"
 
 // References.
-void framebuffer_size_callback(GLFWwindow* a_window, int a_width, int a_height);
-void getError(int a_line);
+void Framebuffer_size_callback(GLFWwindow* a_window, int a_width, int a_height);
+void GetError(int a_line);
 GLFWwindow* CreateWindow();
 GLFWmonitor* GetSecondMonitor();
 void InitGLFW();
@@ -39,20 +39,20 @@ unsigned int CreateVBO(float* a_indices, int a_verticeCount);
 unsigned int CreateVAO();
 unsigned int CreateEBO(unsigned int* indices, int a_indiceCount);
 
-void mouseHover(GLFWwindow* a_window, double a_posX, double a_posY);
+void MouseHover(GLFWwindow* a_window, double a_posX, double a_posY);
 void mouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods);
-void mouseScroll(GLFWwindow* a_window, double a_xOffset, double a_yOffset);
-void keyPress(GLFWwindow* a_window, int a_key, int a_scancode, int a_action, int a_mods);
+void MouseScroll(GLFWwindow* a_window, double a_xOffset, double a_yOffset);
+void KeyPress(GLFWwindow* a_window, int a_key, int a_scancode, int a_action, int a_mods);
 
-void createResources();
+void CreateResources();
 
-Page* m_nextPage = nullptr;
+Page* nextPage = nullptr;
 int screenWidth = 1920;
 int screenHeight = 1080;
 
 int main()
 {
-	createResources();
+	CreateResources();
 
 	InitGLFW();
 
@@ -75,21 +75,21 @@ int main()
 	// Callbacks.
 
 	// Binds the 'framebuffer_size_callback' method to the window resize event.
-	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
+	glfwSetFramebufferSizeCallback(window, Framebuffer_size_callback);
 
 	// Set callbacks
 	glfwSetMouseButtonCallback(window, mouseClick); // Catches the mouse click event
-	glfwSetCursorPosCallback(window, mouseHover); // Catches the mouse move event
-	glfwSetScrollCallback(window, mouseScroll);
-	glfwSetKeyCallback(window, keyPress);
+	glfwSetCursorPosCallback(window, MouseHover); // Catches the mouse move event
+	glfwSetScrollCallback(window, MouseScroll);
+	glfwSetKeyCallback(window, KeyPress);
 
-	m_nextPage = new HomePage(window);
+	nextPage = new HomePage(window);
 
-	while (m_nextPage)
+	while (nextPage)
 	{
-		Page* m_newNextPage = m_nextPage->Run();
-		delete m_nextPage;
-		m_nextPage = m_newNextPage;
+		Page* m_newNextPage = nextPage->Run();
+		delete nextPage;
+		nextPage = m_newNextPage;
 	}
 		
 	// Cleanup
@@ -102,15 +102,15 @@ int main()
 // ---
 
 // Handle window resize.
-void framebuffer_size_callback(GLFWwindow* a_window, int a_width, int a_height)
+void Framebuffer_size_callback(GLFWwindow* a_window, int a_width, int a_height)
 {
-	m_nextPage->UpdateScreenSize(a_width, a_height);
+	nextPage->UpdateScreenSize(a_width, a_height);
 
 	// Update the viewport
 	glViewport(0, 0, a_width, a_height);
 }
 
-void getError(int a_line)
+void GetError(int a_line)
 {
 	GLenum m_error = glGetError();
 	if (m_error != GL_NO_ERROR)
@@ -222,31 +222,31 @@ unsigned int CreateVAO()
 	return renderVao;
 }
 
-void mouseHover(GLFWwindow* a_window, double a_posX, double a_posY)
+void MouseHover(GLFWwindow* a_window, double a_posX, double a_posY)
 {
-	if (m_nextPage != nullptr)
-		m_nextPage->MouseHover(a_window, a_posX, a_posY);
+	if (nextPage != nullptr)
+		nextPage->MouseHover(a_window, a_posX, a_posY);
 }
 
 void mouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods)
 {
-	if (m_nextPage != nullptr)
-		m_nextPage->MouseClick(a_window, a_button, a_action, a_mods);
+	if (nextPage != nullptr)
+		nextPage->MouseClick(a_window, a_button, a_action, a_mods);
 }
 
-void mouseScroll(GLFWwindow* a_window, double a_xOffset, double a_yOffset)
+void MouseScroll(GLFWwindow* a_window, double a_xOffset, double a_yOffset)
 {
-	if (m_nextPage != nullptr)
-		m_nextPage->MouseScroll(a_window, a_xOffset, a_yOffset);
+	if (nextPage != nullptr)
+		nextPage->MouseScroll(a_window, a_xOffset, a_yOffset);
 }
 
-void keyPress(GLFWwindow* a_window, int a_key, int a_scancode, int a_action, int a_mods)
+void KeyPress(GLFWwindow* a_window, int a_key, int a_scancode, int a_action, int a_mods)
 {
-	if (m_nextPage != nullptr)
-		m_nextPage->KeyPress(a_window, a_key, a_scancode, a_action, a_mods);
+	if (nextPage != nullptr)
+		nextPage->KeyPress(a_window, a_key, a_scancode, a_action, a_mods);
 }
 
-void createResources()
+void CreateResources()
 {
 	auto m_resources = GetResources();
 	for (auto m_dirs : m_resources)

@@ -787,13 +787,15 @@ std::array<cellCountType, 3> World::GetStatistics()
 	return std::array<cellCountType, 3>{ this->cellStatistics[0], this->cellStatistics[1], this->cellStatistics[2] };
 }
 
-std::pair<coordinatePart, coordinatePart> World::GetTopLeftCoordinates()
+std::pair<coordinatePart, coordinatePart> World::GetCenterCoordinates()
 {
 	this->cellsEditLock.lock_shared();
 	auto m_beginning = this->cells.cbegin();
 	auto m_ending = this->cells.cend();
 	coordinatePart m_minX = std::numeric_limits<coordinatePart>::max();
 	coordinatePart m_minY = std::numeric_limits<coordinatePart>::max();
+	coordinatePart m_maxX = std::numeric_limits<coordinatePart>::min();
+	coordinatePart m_maxY = std::numeric_limits<coordinatePart>::min();
 	
 	while (m_beginning != m_ending)
 	{
@@ -801,10 +803,18 @@ std::pair<coordinatePart, coordinatePart> World::GetTopLeftCoordinates()
 			m_minY = m_beginning->second->y;
 		if (m_beginning->second->x < m_minX)
 			m_minX = m_beginning->second->x;
+
+		if (m_beginning->second->y > m_maxY)
+			m_maxY = m_beginning->second->y;
+		if (m_beginning->second->x > m_maxX)
+			m_maxX = m_beginning->second->x;
 		std::advance(m_beginning, 1);
 	}
 	this->cellsEditLock.unlock_shared();
-	return std::make_pair(m_minX, m_minY);
+	coordinatePart m_centerX = m_minX + ((m_maxX - m_minX) / 2);
+	coordinatePart m_centerY = m_minY + ((m_maxY - m_minY) / 2);
+
+	return std::make_pair(m_centerX, m_centerY);
 }
 
 void World::ResetToConductors()
@@ -826,6 +836,9 @@ void World::ResetToConductors()
 			// Actually change the cell state
 			if (m_cell->cellState < Background)
 				m_cell->cellState = Conductor;
+			if (m_cell->decayState < Background)
+				m_cell->decayState = Conductor;
+
 
 			// Count the new conductor
 			this->cellStatistics[2] += 1;

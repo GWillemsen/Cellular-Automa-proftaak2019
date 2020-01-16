@@ -110,7 +110,7 @@ public:
 
 	bool GetIsRunning() { return !this->pauzeSimulation; };
 	std::array<cellCountType, 3> GetStatistics();
-	std::pair<coordinatePart, coordinatePart> GetTopLeftCoordinates();
+	std::pair<coordinatePart, coordinatePart> GetCenterCoordinates();
 	void ResetToConductors();
 	generationType GetDisplayGeneration();
 };

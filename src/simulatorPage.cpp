@@ -325,7 +325,7 @@ void SimulatorPage::RenderImGui()
 			for (auto m_cell : this->worldCells.cells)
 				m_cell.second->InitRender(this->gridCellShader);
 
-			auto m_topLeft = this->worldCells.GetTopLeftCoordinates();
+			auto m_topLeft = this->worldCells.GetCenterCoordinates();
 			this->scrollOffsetX = -(m_topLeft.first - 1);
 			this->scrollOffsetY = -(m_topLeft.second - 2);
 		}
