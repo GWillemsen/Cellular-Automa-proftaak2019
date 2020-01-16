@@ -284,8 +284,8 @@ void SimulatorPage::RenderImGui()
 
 			ImGui::Text("Status: ");
 			ImGui::Text("Conductor: ");
-			ImGui::Text("Tail: ");
 			ImGui::Text("Head: ");
+			ImGui::Text("Tail: ");
 			ImGui::Text("Last update cycle time (ms): ");
 			ImGui::Text("FPS:");
 			ImGui::Text("Generation:");
@@ -297,8 +297,8 @@ void SimulatorPage::RenderImGui()
 
 			auto m_cellStats = this->worldCells.GetStatistics();
 			ImGui::Text("%i", m_cellStats[2]); //Conductor count
-			ImGui::Text("%i", m_cellStats[1]); // Tail count
 			ImGui::Text("%i", m_cellStats[0]); // Head count
+			ImGui::Text("%i", m_cellStats[1]); // Tail count
 			ImGui::Text("%.4f", this->worldCells.lastUpdateDuration);
 			ImGui::Text("%.4f", this->imguiIO->Framerate);
 			ImGui::Text("%i", this->worldCells.GetDisplayGeneration());
@@ -484,7 +484,7 @@ void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_pos
 	}
 	
 	// Scrolling
-	if (this->rightMouseButtonIsDown)
+	if (this->rightMouseButtonIsDown || this->scrollWheelButtonIsDown)
 	{
 		coordinatePart m_diffX = m_curCellXHovered - m_lastCellX;
 		coordinatePart m_diffY = m_curCellYHovered - m_lastCellY;
@@ -535,6 +535,17 @@ void SimulatorPage::MouseClick(GLFWwindow* a_window, int a_button, int a_action,
 	else if (a_button == 1 && a_action == 0)
 	{
 		this->rightMouseButtonIsDown = false;
+	}
+
+	// Scroll wheel button press
+	if (a_button == 2 && a_action == 1)
+	{
+		this->scrollWheelButtonIsDown = true;
+	}
+	// Scroll wheel button release
+	else if (a_button == 2 && a_action == 0)
+	{
+		this->scrollWheelButtonIsDown = false;
 	}
 }
 

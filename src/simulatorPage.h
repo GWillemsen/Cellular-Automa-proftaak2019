@@ -103,6 +103,7 @@ private:
 
 	bool leftMouseButtonIsDown = false;
 	bool rightMouseButtonIsDown = false;
+	bool scrollWheelButtonIsDown = false;
 
 	char** brushRadiusNames = new char*[6] { "1", "3", "5", "7", "9", "11" };
 	int brushRadiusSelectorPos = 0;
