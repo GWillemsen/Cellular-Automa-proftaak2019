@@ -7,38 +7,48 @@
 
 const std::string basicFragmentShaderGlsl = R"(#version 330 core
 out vec4 FragColor;
+
+// Gets the color from C++
 uniform vec4 u_Color;
+
 void main()
 {
-	FragColor = u_Color;
+   FragColor = u_Color;//vec4(1.0f, 0.5f, 0.2f, 1.0f);
 };)";
 
 const std::string gridCellFragmentShaderGlsl = R"(#version 330 core
 out vec4 FragColor;
-in vec3 color;
+in vec3 Color;
 
 void main()
 {
-   FragColor = vec4(color.x, color.y, color.z, 1.0f);
+   FragColor = vec4(Color.x, Color.y, Color.z, 1.0f);
 };)";
 
 const std::string gridLineVertexShaderGlsl = R"(#version 330 core
-layout(location = 0) in vec2 aPos;
+layout (location = 0) in vec2 aPos;
+
 uniform mat4 u_ProjectionMatrix;
+
+// Grid line render uniforms
 uniform int u_CellSizeInPx;
 uniform int u_DrawHorizontal;
+
 void main()
 {
-	float offsetNumber = u_CellSizeInPx * gl_InstanceID;
+	// Calculate the offset for the cells and grid lines
+	float m_offsetNumber = u_CellSizeInPx * gl_InstanceID;
+
+	// Render grid lines
 	if (u_DrawHorizontal == 1)
 	{
-		gl_Position = u_ProjectionMatrix * vec4(aPos.x, aPos.y + offsetNumber, 1.0, 1.0);
+		gl_Position = u_ProjectionMatrix * vec4(aPos.x, aPos.y + m_offsetNumber , 1.0, 1.0);
 	}
 	else
 	{
-		gl_Position = u_ProjectionMatrix * vec4(aPos.x + offsetNumber, aPos.y, 1.0, 1.0);
+		gl_Position = u_ProjectionMatrix * vec4(aPos.x + m_offsetNumber , aPos.y, 1.0, 1.0);
 	}
-};)";
+})";
 
 const std::string gridCellVertexShaderGlsl = R"(#version 330 core
 layout (location = 0) in vec2 aPos;
@@ -47,7 +57,7 @@ layout (location = 3) in vec3 aColor;
 
 uniform mat4 u_ModelMatrix;
 uniform mat4 u_ProjectionMatrix;
-out vec3 color;
+out vec3 Color;
 
 void main()
 {
@@ -56,7 +66,7 @@ void main()
 	float m_newX = m_newPosition.x + aInstanceOffset.x;
 	float m_newY = m_newPosition.y + aInstanceOffset.y;
 	gl_Position = u_ProjectionMatrix * vec4(m_newX, m_newY, m_newPosition.z, m_newPosition.w);
-	color = aColor;
+	Color = aColor;
 })";
 
 const std::string imguiIni = R"([Window][Debug##Default]
