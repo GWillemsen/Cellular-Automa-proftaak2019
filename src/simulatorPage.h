@@ -10,14 +10,13 @@
 #include <glm\glm.hpp>
 #include <glm\gtx\transform.hpp>
 #include <glm\ext\matrix_projection.hpp>
-#include <glm\ext\matrix_clip_space.hpp> // glm::perspective
 
 // Dear ImGui
 #include <imgui.h>
 #include <imgui_impl_glfw.h>
 #include <imgui_impl_opengl3.h>
 
-// Dear ImGui Addons
+// Dear ImGui Add-ons
 #include <ImGuiFileDialog.h>
 
 // Class header files
@@ -26,7 +25,6 @@
 #include "cell.h"
 #include "shader.h"
 #include "config.h"
-#include "premadeBlock.h"
 
 #ifndef __SIMULATORPAGE__
 #define __SIMULATORPAGE__
@@ -125,7 +123,7 @@ private:
 	
 public:
 	SimulatorPage(GLFWwindow* a_window);
-	Page *Run();
+	virtual Page *Run() override;
 
 private:
 	void InitOpenGL();

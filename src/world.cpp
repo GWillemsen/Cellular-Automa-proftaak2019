@@ -268,11 +268,6 @@ void World::Open(std::string a_filePath)
 	this->LoadFile();
 }
 
-void World::SaveAsTemplate(std::string a_worldName)
-{
-	// Saves the world to a template file
-}
-
 void World::StartSimulation()
 {
 	{
@@ -307,7 +302,6 @@ void World::UpdateSimulationWithSingleGeneration()
 		this->currentGeneration++;
 	}
 	this->nextUpdateCv.notify_all();
-
 
 	auto m_begining = this->threadComboData.begin();
 	auto m_ending = this->threadComboData.end();
@@ -383,14 +377,14 @@ void World::ProcessPartContinuesly(unsigned int a_threadId, unsigned int a_threa
 
 	while (!this->cancelSimulation)
 	{
-		// lk is only locked when the predicate is checked and if it returns true. 
-		// otherwise it will unlock lk allowing other threads to check the condition as well
-		// the whole loop set, see -> https://stackoverflow.com/a/2763749
+		// m_lk is only locked when the predicate is checked and if it returns true. 
+		// otherwise it will unlock m_lk allowing other threads to check the condition as well
+
 		this->nextUpdateCv.wait(m_lk, [this, m_nextToGenerateGeneration] {
 			return m_nextToGenerateGeneration <= this->currentGeneration || this->cancelSimulation;
 		});
 
-		// unlock lk. we only needed the lock to check the currentGeneration.
+		// unlock m_lk. we only needed the lock to check the currentGeneration.
 		m_lk.unlock();
 		if (!this->cancelSimulation)
 		{
@@ -445,7 +439,7 @@ void World::ProcessPartContinuesly(unsigned int a_threadId, unsigned int a_threa
 			m_threadData->cv.notify_all();
 			m_nextToGenerateGeneration++;
 		}
-		// lock the lk again.
+		// lock the m_lk again.
 		m_lk.lock();
 	}
 }
@@ -461,12 +455,11 @@ void World::ProcessLastPart()
 
 	while (!this->cancelSimulation)
 	{
-		// lk is only locked when the predicate is checked and if it returns true. 
-		// otherwise it will unlock lk allowing other threads to check the condition as well
-		// the whole loop set, see -> https://stackoverflow.com/a/2763749
+		// m_lk is only locked when the predicate is checked and if it returns true. 
+		// otherwise it will unlock m_lk allowing other threads to check the condition as well
 
 		this->nextUpdateCv.wait(m_lk, [this, m_nextToGenerateGeneration] {return m_nextToGenerateGeneration <= this->currentGeneration || this->cancelSimulation; });
-		// unlock lk. we only needed the lock to check the currentGeneration.
+		// unlock m_lk. we only needed the lock to check the currentGeneration.
 		m_lk.unlock();
 		if (!this->cancelSimulation)
 		{
@@ -520,7 +513,7 @@ void World::ProcessLastPart()
 			this->lastPartGenerationCv.notify_all();
 			m_nextToGenerateGeneration++;
 		}
-		// lock the lk again.
+		// lock the m_lk again.
 		m_lk.lock();
 	}
 }
@@ -623,7 +616,7 @@ void World::TimerThread()
 			std::unique_lock<std::mutex> m_lk(this->simCalcUpdateLock);
 			
 			// wait for either the simulation to be canceled or the speed to be changed
-			// returns false if timeout has expired and pred() is still false. otherwise it will return true
+			// returns false if timeout has expired and _pred() is still false. otherwise it will return true
 			bool m_waitResult = this->simCalcUpdate.wait_until(m_lk, m_nextWake, [this, m_targetSpeed] {
 				return this->cancelSimulation || this->targetSimulationSpeed != m_targetSpeed;
 			});
@@ -718,11 +711,6 @@ bool World::TryUpdateCell(coordinatePart a_cellX, coordinatePart a_cellY, std::f
 		this->cellsEditLock.unlock();
 		return m_result;
 	}
-}
-
-void World::LoadBlockAt(PremadeBlock a_premadeBlock, coordinatePart a_cellX, coordinatePart a_cellY)
-{
-	// Loads the content of a premade block at a specific grid coordinate
 }
 
 void World::InViewport(std::vector<Cell*>* a_output, coordinatePart a_x, coordinatePart a_y, unsigned int a_width, unsigned int a_height)

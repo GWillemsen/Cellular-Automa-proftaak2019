@@ -1,4 +1,4 @@
-// System libaries
+// System libraries
 #include <iostream>
 #include <thread>
 #include <map>
@@ -26,9 +26,9 @@ private:
 	void RenderImGui();
 
 
-	virtual void MouseHover(GLFWwindow* a_window, double a_posX, double a_posY) override;
-	virtual void MouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods) override;
-	virtual void MouseScroll(GLFWwindow* a_window, double a_xOffset, double a_yOffset) override;
+	virtual void MouseHover(GLFWwindow* a_window, double a_posX, double a_posY) override {}
+	virtual void MouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods) override {}
+	virtual void MouseScroll(GLFWwindow* a_window, double a_xOffset, double a_yOffset) override {}
 };
 
 #endif // !__HOMEPAGE__

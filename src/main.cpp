@@ -69,7 +69,7 @@ int main()
 	if (!TryInitGLAD())
 		return -1;
 
-	// Set the viewport
+	// Set the view port
 	glViewport(0, 0, screenWidth, screenHeight);
 
 	// Callbacks.
@@ -97,16 +97,12 @@ int main()
 	return 0;
 }
 
-// ---
-// Callback logic.
-// ---
-
 // Handle window resize.
 void Framebuffer_size_callback(GLFWwindow* a_window, int a_width, int a_height)
 {
 	nextPage->UpdateScreenSize(a_width, a_height);
 
-	// Update the viewport
+	// Update the view port
 	glViewport(0, 0, a_width, a_height);
 }
 
@@ -122,12 +118,12 @@ GLFWwindow* CreateWindow()
 	GLFWmonitor* monitor = glfwGetPrimaryMonitor();
 	const GLFWvidmode* mode = glfwGetVideoMode(monitor);
 
+	// Set the update rate
 	glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
-	//glfwWindowHint(GLFW_MAXIMIZED, GLFW_FALSE);
+	// Don't use any borders
 	glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
 
 	//GLFWwindow* window = glfwCreateWindow(1000, 1000, "LearnOpenGL", NULL, NULL);
-	//glfwSetWindowPos(window, 1900, 0);
 	GLFWwindow* window = glfwCreateWindow(mode->width, mode->height, "LearnOpenGL", monitor, NULL);
 
 	// Get the resulting screen width & height
@@ -206,7 +202,7 @@ unsigned int CreateEBO(unsigned int* a_indices, int a_indiceCount)
 unsigned int CreateVBO(float* a_vertices, int a_verticeCount)
 {
 	unsigned int vboBuffer;
-	// Create a vbo and fill it with data.
+	// Create a VBO and fill it with data.
 	glGenBuffers(1, &vboBuffer);
 	glBindBuffer(GL_ARRAY_BUFFER, vboBuffer);
 	glBufferData(GL_ARRAY_BUFFER, a_verticeCount * sizeof(glm::vec4), a_vertices, GL_STREAM_DRAW);
@@ -216,7 +212,7 @@ unsigned int CreateVBO(float* a_vertices, int a_verticeCount)
 unsigned int CreateVAO()
 {
 	unsigned int renderVao;
-	// Create a vao.
+	// Create a VAO.
 	glGenVertexArrays(1, &renderVao);
 	glBindVertexArray(renderVao);
 	return renderVao;

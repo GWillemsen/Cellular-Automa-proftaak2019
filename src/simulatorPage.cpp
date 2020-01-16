@@ -43,11 +43,33 @@ Page* SimulatorPage::Run()
 		glfwSwapBuffers(this->window);
 	}
 
+	this->DisposeOpenGL();
+	this->DisposeImGui();
+	return this->nextPage;
+}
+
+void SimulatorPage::DisposeOpenGL()
+{
+	this->GetError(__LINE__);
+	glDeleteBuffers(1, &this->cellColorBuffer);
+	glDeleteBuffers(1, &this->cellEboBuffer);
+	glDeleteBuffers(1, &this->cellOffsetBuffer);
+	glDeleteBuffers(1, &this->cellVboBuffer);
+	glDeleteBuffers(1, &this->gridVerticalLineVaoBuffer);
+	glDeleteBuffers(1, &this->gridVerticalLineVboBuffer);
+	this->GetError(__LINE__);
+	
+	glDeleteVertexArrays(1, &this->cellVaoBuffer);
+	glDeleteVertexArrays(1, &this->gridHorizontalLineVaoBuffer);
+	glDeleteVertexArrays(1, &this->gridVerticalLineVaoBuffer);
+	this->GetError(__LINE__);
+}
+
+void SimulatorPage::DisposeImGui()
+{
 	ImGui_ImplOpenGL3_Shutdown();
 	ImGui_ImplGlfw_Shutdown();
 	ImGui::DestroyContext();
-
-	return this->nextPage;
 }
 
 // Initializes and presets all systems that render with OpenGL
@@ -80,13 +102,13 @@ void SimulatorPage::InitOpenGL()
 	glEnableVertexAttribArray(2);
 	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (GLvoid*)0); // Each element is a GL_FLOAT, they make a glm::vec2 with 2 elements, and the pointer
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glVertexAttribDivisor(2, 1); // One glm:vec2 at a time
+	glVertexAttribDivisor(2, 1); // One vec2 at a time
 	
 	glBindBuffer(GL_ARRAY_BUFFER, this->cellColorBuffer);
 	glEnableVertexAttribArray(3);
 	glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (GLvoid*)0); // Each element is a GL_FLOAT, they make a glm::vec2 with 2 elements, and the pointer
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glVertexAttribDivisor(3, 1); // One glm:vec2 at a time
+	glVertexAttribDivisor(3, 1); // One vec2 at a time
 
 	glEnableVertexAttribArray(0);
 
@@ -155,7 +177,7 @@ void SimulatorPage::RenderOpenGL()
 {
 	// Renders graphics through OpenGL
 	
-	// Render all the cells within the viewport
+	// Render all the cells within the view port
 	this->RenderCells();
 
 	// Render the grid lines
@@ -548,7 +570,7 @@ void SimulatorPage::KeyPress(GLFWwindow* a_window, int a_key, int a_scancode, in
 
 void SimulatorPage::RenderCells()
 {
-	// Get all of the cells that are located within the viewport
+	// Get all of the cells that are located within the view port
 	coordinatePart m_viewportOriginX = -1 - this->scrollOffsetX;
 	coordinatePart m_viewportOriginY = -1 - this->scrollOffsetY;
 

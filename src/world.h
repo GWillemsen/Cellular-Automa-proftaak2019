@@ -6,7 +6,6 @@
 #include <shared_mutex>
 
 #include "cell.h"
-#include "premadeBlock.h"
 #include "config.h"
 #include "coordinateType.h"
 
@@ -91,8 +90,7 @@ public:
 
 	void Save();
 	void Open(std::string a_filePath);
-	void SaveAsTemplate(std::string a_worldName);
-
+	
 	void UpdateSimulationWithSingleGeneration();
 	void StartSimulation();
 	void PauzeSimulation();
@@ -104,7 +102,6 @@ public:
 	Cell* GetCopyOfCellAt(coordinatePart a_cellX, coordinatePart a_cellY);
 	bool TryUpdateCell(coordinatePart a_cellX, coordinatePart a_cellY, std::function<bool (Cell*)> a_updater);
 	bool TryInsertCellAt(coordinatePart a_cellX, coordinatePart a_cellY, CellState a_state);
-	void LoadBlockAt(PremadeBlock a_premadeBlock, coordinatePart a_cellX, coordinatePart a_cellY);
 	void InViewport(std::vector<Cell*>* a_output, coordinatePart a_x, coordinatePart a_y, unsigned int a_width, unsigned int a_height);
 	bool TryDeleteCell(coordinatePart a_cellX, coordinatePart a_cellY);
 

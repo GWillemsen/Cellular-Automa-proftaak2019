@@ -145,19 +145,3 @@ void HomePage::RenderImGui()
 	ImGui::EndFrame();
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
-
-void HomePage::MouseHover(GLFWwindow* a_window, double a_posX, double a_posY) 
-{
-
-}
-
-void HomePage::MouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods) 
-{
-
-}
-
-void HomePage::MouseScroll(GLFWwindow* a_window, double a_xOffset, double a_yOffset) 
-{
-
-}
-
