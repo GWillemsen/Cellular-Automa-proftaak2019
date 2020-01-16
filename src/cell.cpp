@@ -1,5 +1,6 @@
 #include "cell.h"
 #include "coordinateType.h"
+#include "config.h"
 
 void Cell::InitRender(Shader a_shader)
 {
@@ -12,18 +13,16 @@ void Cell::Render(int a_cellSizeInPx, coordinatePart a_scrollOffsetX, coordinate
 	switch (this->cellState)
 	{
 	case CellState::Conductor:
-		// Yellow
-		*a_color = glm::vec3(1.0f, 1.0f, 0.0f);
+		*a_color = Config::instance->conductorColor;
 		break;
 	case CellState::Head:
-		// Red
-		*a_color = glm::vec3(1.0f, 0.0f, 0.0f);
+		*a_color = Config::instance->headColor;
 		break;
 	case CellState::Tail:
-		// Blue
-		*a_color = glm::vec3(0.0f, 0.0f, 1.0f);
+		*a_color = Config::instance->tailColor;
 		break;
 	}
+
 	a_offset->x = (this->x + a_scrollOffsetX) * a_cellSizeInPx;
 	a_offset->y = (this->y + a_scrollOffsetY) * a_cellSizeInPx;
 }

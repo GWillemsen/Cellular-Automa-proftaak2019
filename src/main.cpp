@@ -40,7 +40,7 @@ unsigned int CreateVAO();
 unsigned int CreateEBO(unsigned int* indices, int a_indiceCount);
 
 void MouseHover(GLFWwindow* a_window, double a_posX, double a_posY);
-void mouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods);
+void MouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods);
 void MouseScroll(GLFWwindow* a_window, double a_xOffset, double a_yOffset);
 void KeyPress(GLFWwindow* a_window, int a_key, int a_scancode, int a_action, int a_mods);
 
@@ -71,14 +71,12 @@ int main()
 
 	// Set the view port
 	glViewport(0, 0, screenWidth, screenHeight);
-
-	// Callbacks.
-
+	
 	// Binds the 'framebuffer_size_callback' method to the window resize event.
 	glfwSetFramebufferSizeCallback(window, Framebuffer_size_callback);
 
 	// Set callbacks
-	glfwSetMouseButtonCallback(window, mouseClick); // Catches the mouse click event
+	glfwSetMouseButtonCallback(window, MouseClick); // Catches the mouse click event
 	glfwSetCursorPosCallback(window, MouseHover); // Catches the mouse move event
 	glfwSetScrollCallback(window, MouseScroll);
 	glfwSetKeyCallback(window, KeyPress);
@@ -224,7 +222,7 @@ void MouseHover(GLFWwindow* a_window, double a_posX, double a_posY)
 		nextPage->MouseHover(a_window, a_posX, a_posY);
 }
 
-void mouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods)
+void MouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods)
 {
 	if (nextPage != nullptr)
 		nextPage->MouseClick(a_window, a_button, a_action, a_mods);
