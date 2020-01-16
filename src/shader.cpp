@@ -7,9 +7,9 @@
 #include "shader.h"
 
 // Sets the vertex shader of this program.
-bool Shader::setVertexShader(std::string a_pathToShaderSourceFile)
+bool Shader::SetVertexShader(std::string a_pathToShaderSourceFile)
 {
-    std::string shaderSource = this->loadShaderSource(a_pathToShaderSourceFile);
+    std::string shaderSource = this->LoadShaderSource(a_pathToShaderSourceFile);
     this->vertexShaderSource = shaderSource.c_str();
 
     // Create the new vertex shader.
@@ -19,15 +19,15 @@ bool Shader::setVertexShader(std::string a_pathToShaderSourceFile)
     glShaderSource(this->vertexShaderID, 1, &this->vertexShaderSource, NULL);
     glCompileShader(this->vertexShaderID);
 
-    if(!this->shaderCompiled(this->vertexShaderID))
+    if(!this->ShaderCompiled(this->vertexShaderID))
         return false;
 
     return true;
 }
 
-bool Shader::setFragmentShader(std::string a_pathToShaderSourceFile)
+bool Shader::SetFragmentShader(std::string a_pathToShaderSourceFile)
 {
-    std::string shaderSource = this->loadShaderSource(a_pathToShaderSourceFile);
+    std::string shaderSource = this->LoadShaderSource(a_pathToShaderSourceFile);
     this->fragmentShaderSource = shaderSource.c_str();
 
     // Create the new vertex shader.
@@ -37,13 +37,13 @@ bool Shader::setFragmentShader(std::string a_pathToShaderSourceFile)
     glShaderSource(this->fragmentShaderID, 1, &this->fragmentShaderSource, NULL);
     glCompileShader(this->fragmentShaderID);
 
-    if(!this->shaderCompiled(this->fragmentShaderID))
+    if(!this->ShaderCompiled(this->fragmentShaderID))
         return false;
 
     return true;
 }
 
-int Shader::compile()
+int Shader::Compile()
 {
     this->shaderProgram = glCreateProgram();
 
@@ -57,7 +57,7 @@ int Shader::compile()
     int compiled;
     char infoLog[512];
 
-    // Get the compile status.
+    // Get the Compile status.
     glGetProgramiv(this->shaderProgram, GL_LINK_STATUS, &compiled);
 
     if(!compiled)
@@ -75,19 +75,19 @@ int Shader::compile()
     return this->shaderProgram;
 }
 
-GLint Shader::getUniformLocation(std::string a_uniformName)
+GLint Shader::GetUniformLocation(std::string a_uniformName)
 {
 	GLint m_location = glGetUniformLocation(this->shaderProgram, a_uniformName.c_str());
 
     return m_location;
 }
 
-void Shader::use()
+void Shader::Use()
 {
     glUseProgram(this->shaderProgram);
 }
 
-std::string Shader::loadShaderSource(std::string a_pathToShaderSourceFile)
+std::string Shader::LoadShaderSource(std::string a_pathToShaderSourceFile)
 {
     std::ifstream fileReader;
     fileReader.open(a_pathToShaderSourceFile, std::ios::binary);
@@ -119,12 +119,12 @@ std::string Shader::loadShaderSource(std::string a_pathToShaderSourceFile)
     return "";
 }
 
-bool Shader::shaderCompiled(unsigned int a_id)
+bool Shader::ShaderCompiled(unsigned int a_id)
 {
     int compiled;
     char infoLog[512];
 
-    // Get the compile status.
+    // Get the Compile status.
     glGetShaderiv(a_id, GL_COMPILE_STATUS, &compiled);
 
     if(!compiled)
@@ -138,10 +138,16 @@ bool Shader::shaderCompiled(unsigned int a_id)
     return true;
 }
 
-unsigned int Shader::getProgramId()
+unsigned int Shader::GetProgramId()
 {
 	if (!this->compiledShaderProgram)
-		return this->compile();
+		return this->Compile();
 	else
 		return this->shaderProgram;
+}
+
+void Shader::SetMatrixValue(std::string a_uniformname, const GLfloat* a_data)
+{
+    this->Use();
+    glUniformMatrix4fv(this->GetUniformLocation(a_uniformname), 1, GL_FALSE, a_data);
 }

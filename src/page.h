@@ -9,10 +9,14 @@
 class Page
 {
 public:
+	const char* glsl_version = "#version 330 core";
 	GLFWwindow* window;
 	int screenWidth;
 	int screenHeight;
 	std::string pageName;
+protected:
+	Page* nextPage = nullptr;
+	bool closeThisPage = false;
 private:
 	unsigned int lastLineNumber = 0;
 public:
@@ -37,11 +41,14 @@ public:
 		{
 			std::cout << "A OpenGL call with error code " << m_error << " took place somewhere between line: " << this->lastLineNumber << " and " << a_line;
 			std::cout << " most likely at page: " << this->pageName << std::endl;
-			this->lastLineNumber = a_line;
 		}
+		this->lastLineNumber = a_line;
 	}
 	virtual void MouseHover(GLFWwindow* a_window, double a_posX, double a_posY) {};
 	virtual void MouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods) {};
+	virtual void MouseScroll(GLFWwindow* a_window, double a_xOffset, double a_yOffset) {};
+	virtual void KeyPress(GLFWwindow* a_window, int a_key, int a_scancode, int a_action, int a_mods) {};
+	virtual ~Page() = default;
 };
 
 #endif // !__PAGE__

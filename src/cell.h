@@ -1,9 +1,17 @@
 #include <iostream>
+#include <atomic>
+
+#include <glad/glad.h>
+#include <glm/glm.hpp>
+#include <glm\gtx\transform.hpp>
+
+#include "shader.h"
+#include "coordinateType.h"
 
 #ifndef __CELL__
 #define __CELL__
 
-enum CellState
+enum CellState : int
 {
 	Conductor = 0,
 	Head = 1,
@@ -14,13 +22,40 @@ enum CellState
 class Cell
 {
 public:
-	long x;
-	long y;
+	coordinatePart x;
+	coordinatePart y;
+
 	CellState cellState;
+	CellState decayState;
+	
+	std::atomic<unsigned char> atomic_neighborCount;
+
+private:
+	GLuint vaoBuffer = -1;
+	Shader shader;
 
 public:
-	void InitRender(long a_cellX, long a_cellY);
-	void Render(int a_colorUniform, int a_vaoBuffer);
+	Cell(coordinatePart x, coordinatePart y, CellState state) : Cell()
+	{
+		this->x = x;
+		this->y = y;
+		this->cellState = state;
+		this->decayState = state;
+		this->shader = Shader();
+		this->atomic_neighborCount.store(0);
+	}
+
+	Cell() : shader()
+	{
+		this->decayState = Background;
+		this->cellState = Background;
+		this->x = 0;
+		this->y = 0;
+		this->atomic_neighborCount.store(0);
+	}
+
+	void InitRender(Shader a_shader);
+	void Render(int a_cellSizeInPx, coordinatePart a_scrollOffsetX, coordinatePart a_scrollOffsetY, glm::vec2* a_offset, glm::vec3* a_color);
 };
 
 #endif // __CELL__

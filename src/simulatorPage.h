@@ -1,61 +1,129 @@
+// System libaries
 #include <iostream>
-#include <GLFW\glfw3.h>
-#include <GLM/ext/matrix_projection.hpp>
-#include <glm/ext/matrix_clip_space.hpp> // glm::perspective
+#include <thread>
+#include <map>
 
+// GLAD, GLM and GLFW
+#include <glad\glad.h>
+#include <GLFW\glfw3.h>
+
+#include <glm\glm.hpp>
+#include <glm\gtx\transform.hpp>
+#include <glm\ext\matrix_projection.hpp>
+
+// Dear ImGui
+#include <imgui.h>
+#include <imgui_impl_glfw.h>
+#include <imgui_impl_opengl3.h>
+
+// Dear ImGui Add-ons
+#include <ImGuiFileDialog.h>
+
+// Class header files
 #include "page.h"
 #include "world.h"
 #include "cell.h"
 #include "shader.h"
+#include "config.h"
 
 #ifndef __SIMULATORPAGE__
 #define __SIMULATORPAGE__
+#define InstanceBufferSize 1024*24
 
 class SimulatorPage : public Page
 {
-public:
-	SimulatorPage(GLFWwindow* a_window);
-	SimulatorPage(GLFWwindow* a_window, Shader a_shader);
-
 private:
 	const char* glsl_version = "#version 330 core";
-
-	World worldCells[1];
-
-	GLuint colorUniform;
-	glm::mat4 projectionMatrix = glm::ortho(0.0f, 1.0f, 0.0f, 1.0f);
-
-	GLuint cellVaoBuffer;
-	GLuint cellVboBuffer;
-
-	Shader shaders;
-
-	// Grid
-	Shader gridLineShader;
-	Shader gridCellShader;
-	glm::vec3 lineColor = glm::vec3(1.5f, 1.5f, 1.5f);
-
-	int cellSizeDivisor = 32;
-	int lineThickness = 4;
-	int curColHoveredX = 0;
-	int curColHoveredY = 0;
-	
-	float cellScrollOffsetX = 0.0f;
-	float cellScrollOffsetY = 0.0f;
-
-	float gridLineScrollOffsetX = 0.0f;
-	float gridLineScrollOffsetY = 0.0f;
-
-	GLuint gridRowVAO;
-	GLuint gridRowVBO;
-	GLuint gridColumnVAO;
-	GLuint gridColumnVBO;
+	World worldCells;
 
 	// ImGUI
-	ImGuiIO imguiIO;
+	ImGuiIO* imguiIO;
 
+	// Coordinate system
+	glm::mat4 projectionMatrix = glm::ortho(0.0f, (float)this->screenWidth, (float)this->screenHeight, 0.0f);
+
+	// Shaders
+	Shader gridLineShader;
+	Shader gridCellShader;
+
+	// Vertices, Indices and Matrices
+	glm::vec2 cellVertices[6] = {
+		glm::vec2(0.0f, 0.0f),
+		glm::vec2(0.0f, 1.0f),
+		glm::vec2(1.0f, 1.0f),
+		glm::vec2(1.0f, 0.0f),
+	};
+
+	unsigned int cellIndices[6] = {
+		0, 1, 2,
+		0, 3, 2
+	};
+
+	glm::vec2 gridHorizontalLines[2] = {
+		glm::vec2(0.0f, 0.0f),
+		glm::vec2(this->screenWidth, 0.0f),
+	};
+
+	glm::vec2 gridVerticalLines[2] = {
+		glm::vec2(0.0f, 0.0f),
+		glm::vec2(0.0f, this->screenHeight),
+	};
+
+	glm::vec2 cellOffsets[InstanceBufferSize];
+	glm::vec3 cellColors[InstanceBufferSize];
+	
+	// OpenGL objects
+
+	// Cell rendering
+	int cellSizeInPx = 48;
+	int gridLineSizeInPx = 2;
+
+	GLuint cellVaoBuffer = -1;
+	GLuint cellVboBuffer = -1;
+	GLuint cellEboBuffer = -1;
+	GLuint cellOffsetBuffer = -1;
+	GLuint cellColorBuffer = -1;
+	
+	// Grid line rendering
+	GLuint gridHorizontalLineVaoBuffer = -1; // Horizontal line rendering
+	GLuint gridHorizontalLineVboBuffer = -1;
+	
+	GLuint gridVerticalLineVaoBuffer = -1; // Vertical line rendering
+	GLuint gridVerticalLineVboBuffer = -1;
+
+	// Grid system
+	coordinatePart curCellHoveredX = 0;
+	coordinatePart curCellHoveredY = 0;
+	long int scrollDelayBuffer = 0;
+	
+	coordinatePart scrollOffsetX = 0;
+	coordinatePart scrollOffsetY = 0;
+
+	bool leftMouseButtonIsDown = false;
+	bool rightMouseButtonIsDown = false;
+	bool scrollWheelButtonIsDown = false;
+
+	char** brushRadiusNames = new char*[6] { "1", "3", "5", "7", "9", "11" };
+	int brushRadiusSelectorPos = 0;
+	int brushRadius = 1;
+
+	// The cell state that the mouse will draw in
+	CellState cellDrawState = CellState::Conductor;
+	char** cellDrawStateNames = new char* [4]{ "Conductor", "Head", "Tail", "Background" };;
+	int selectedCellDrawName = 0;
+
+	// GUI (Dear ImGUI)
+	bool isInImguiWindow;
+	bool brushWindowOpen = true;
+	bool worldDetailsWindowOpen = false;
+	bool pixeledView = false;
+	bool debugWindowOpen = true;
+	float targetSimulationSpeed = this->worldCells.GetTargetSpeed();
+	bool manuallyAddKeycodesToImgui = false;
+	
 public:
-	Page *Run();
+	SimulatorPage(GLFWwindow* a_window);
+	virtual Page *Run() override;
 
 private:
 	void InitOpenGL();
@@ -63,23 +131,23 @@ private:
 	void InitSimulator();
 	void RenderOpenGL();
 	void RenderImGui();
-	void UpdateSimulation();
 	void DisposeOpenGL();
 	void DisposeImGui();
 	
 	// Input
-	void HandleInput(GLFWwindow* a_window);
-	void MouseHover(GLFWwindow* a_window, double a_posX, double a_posY);
-	void MouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods);
+	virtual void MouseHover(GLFWwindow* a_window, double a_posX, double a_posY) override;
+	virtual void MouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods) override;
+	virtual void MouseScroll(GLFWwindow* a_window, double a_xOffset, double a_yOffset) override;
+	virtual void KeyPress(GLFWwindow* a_window, int a_key, int a_scancode, int a_action, int a_mods) override;
 
 	// Grid
-	void InitGrid();
 	void RenderGrid();
 	void RenderCells();
-	void UpdateCellSize();
-	void DrawGridCell(bool a_drawSameColor);
-	void RemoveGridCell();
+	void UpdateAndRenderPendingCells(int a_pendingCellRenders);
 
+
+	void AddCellToWorld(coordinatePart a_x, coordinatePart a_y);
+	void RemoveCellFromWorld(coordinatePart a_x, coordinatePart a_y);
 };
 
 #endif

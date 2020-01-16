@@ -1,16 +1,28 @@
-#include <glad/glad.h>
-#include <glm/glm.hpp>
 #include "cell.h"
+#include "coordinateType.h"
+#include "config.h"
 
-void Cell::InitRender(long a_cellX, long a_cellY)
+void Cell::InitRender(Shader a_shader)
 {
-	// Initializes the rendering
+	this->shader = a_shader;
 }
 
-void Cell::Render(int a_colorUniform, int a_vaoBuffer)
+void Cell::Render(int a_cellSizeInPx, coordinatePart a_scrollOffsetX, coordinatePart a_scrollOffsetY, glm::vec2* a_offset, glm::vec3* a_color)
 {	
-	glBindVertexArray(a_vaoBuffer);
+	// Give the cell the appropriate color based on the cell state
+	switch (this->cellState)
+	{
+	case CellState::Conductor:
+		*a_color = Config::instance->conductorColor;
+		break;
+	case CellState::Head:
+		*a_color = Config::instance->headColor;
+		break;
+	case CellState::Tail:
+		*a_color = Config::instance->tailColor;
+		break;
+	}
 
-	// Draw the cell
-	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0);
+	a_offset->x = (this->x + a_scrollOffsetX) * a_cellSizeInPx;
+	a_offset->y = (this->y + a_scrollOffsetY) * a_cellSizeInPx;
 }

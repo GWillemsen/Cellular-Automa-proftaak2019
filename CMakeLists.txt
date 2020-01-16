@@ -16,10 +16,10 @@ project(Cellular-automata)
 include_directories($ENV{GLFW_INCLUDE_DIR})
 link_directories($ENV{GLFW_LIBRARY})
 
-include_directories($ENV{GLM_INCLUDE_DIR})
+#include_directories($ENV{GLM_INCLUDE_DIR})
 
 include_directories(dependencies/glad/include)
-include_directories(dependencies/GLM)
+include_directories(dependencies/)
 
 include_directories(dependencies/imgui)
 add_subdirectory(dependencies/imgui)
@@ -35,17 +35,17 @@ set (CPPFILES
 	"src/shader.cpp"
 	"src/main.cpp"
 	"src/cell.cpp"
-	"src/loadPage.cpp"
-	"src/premadeBlock.cpp"
 	"src/shader.cpp"
 	"src/simulatorPage.cpp"
 	"src/world.cpp"
+	"src/homepage.cpp"
+	"src/config.cpp"
 	)
 
-configure_file(src/shaders/basicVertexShader.glsl shaders/basicVertexShader.glsl)
 configure_file(src/shaders/basicFragmentShader.glsl shaders/basicFragmentShader.glsl)
 configure_file(src/shaders/gridLineVertexShader.glsl shaders/gridLineVertexShader.glsl)
 configure_file(src/shaders/gridCellVertexShader.glsl shaders/gridCellVertexShader.glsl)
+configure_file(src/shaders/gridCellFragmentShader.glsl shaders/gridCellFragmentShader.glsl)
 
 add_executable(App ${CPPFILES} dependencies/GLAD/src/glad.c)
 

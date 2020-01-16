@@ -1,124 +1,148 @@
 // Standard system libraries
-#include <thread>
-#include <iostream>
-#include <map>
-
-// Dear ImGui
-#include <imgui.h>
-#include <imgui_impl_glfw.h>
-#include <imgui_impl_opengl3.h>
-
-// GLAD, GLM and GLFW
-#include <glad\glad.h>
-#include <glm\glm.hpp>
-#include <GLFW\glfw3.h>
-#include <glm\gtx\transform.hpp>
-
-// Class header files
+#include <string>
+#include <array>
 #include "simulatorPage.h"
-#include "shader.h"
-#include "config.h"
-
-// Cell variables
-float cellHeight = 0.1f;
-float cellWidth = 0.1f;
-int lastCellState = -1;
-
-float scrollSpeed = 1.0f;
-float scrollSensitivity = 1.2f;
-float scrollDelayBuffer = 0.0f;
-
-// Input variables
-bool mouseIsInGUI = false;
-
-bool leftMouseIsDown = false;
-bool rightMouseIsDown = false;
-bool middleMouseIsDown = false;
-
-glm::vec3 cellVertices[] = {
-	// Triangle 1
-	glm::vec3(0.0f, 0.0f, 0.0f), // Index 0, Top left
-	glm::vec3(0.0f, cellHeight, 0.0f), // Index 1, Bottom left
-	glm::vec3(cellWidth, cellHeight, 0.0f), // Index 2, Bottom right
-
-	// Triangle 2
-	glm::vec3(cellWidth, 0.0f, 0.0f)  // Index 3, Top right
-};
-
-unsigned int cellIndices[] = {
-	// Triangle 1
-	0, 1, 2,
-
-	// Triangle 2
-	0, 3, 2
-};
-
-// Cell debug variables
-std::map<std::pair<int, int>, CellState> debugCellLocations;
+#include "homepage.h"
 
 SimulatorPage::SimulatorPage(GLFWwindow* a_window) : Page(a_window, "SimulatorPage")
 {
-	this->shaders = Shader();
+	// Create shaders
+	this->gridLineShader = Shader();
+	this->gridCellShader = Shader();
 
-	this->shaders.setVertexShader("shaders/basicVertexShader.glsl");
-	this->shaders.setFragmentShader("shaders/basicFragmentShader.glsl");
-	this->shaders.compile();
+	// Compile the gridLine shader, this shader is going to be used to render the grid lines
+	this->gridLineShader.SetVertexShader("shaders/gridLineVertexShader.glsl");
+	this->gridLineShader.SetFragmentShader("shaders/basicFragmentShader.glsl");
+	this->gridLineShader.Compile();
+	this->GetError(__LINE__);
 
-	this->lineColor = glm::vec3(0.4f, 0.4f, 0.4f);
-	this->colorUniform = 0;
-
-	this->cellVaoBuffer = 0;
-	this->cellVboBuffer = 0;
+	// Compile the gridCell shader, this shader is going to be used to render the grid cells
+	this->gridCellShader.SetVertexShader("shaders/gridCellVertexShader.glsl");
+	this->gridCellShader.SetFragmentShader("shaders/gridCellFragmentShader.glsl");
+	this->gridCellShader.Compile();
+	this->GetError(__LINE__);
 }
 
-SimulatorPage::SimulatorPage(GLFWwindow* a_window, Shader a_shader) : SimulatorPage(a_window)
+Page* SimulatorPage::Run()
 {
-	this->shaders = a_shader;
+	this->InitOpenGL();
+	this->InitImGui();
+	
+	while (!this->closeThisPage && !glfwWindowShouldClose(this->window))
+	{
+		glfwPollEvents();
+
+		// Clear the screen
+		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+		glClear(GL_COLOR_BUFFER_BIT);
+
+		// Logic
+		this->RenderOpenGL();
+		this->RenderImGui();
+
+		glfwSwapBuffers(this->window);
+	}
+
+	this->DisposeOpenGL();
+	this->DisposeImGui();
+	return this->nextPage;
 }
 
+void SimulatorPage::DisposeOpenGL()
+{
+	this->GetError(__LINE__);
+	glDeleteBuffers(1, &this->cellColorBuffer);
+	glDeleteBuffers(1, &this->cellEboBuffer);
+	glDeleteBuffers(1, &this->cellOffsetBuffer);
+	glDeleteBuffers(1, &this->cellVboBuffer);
+	glDeleteBuffers(1, &this->gridVerticalLineVaoBuffer);
+	glDeleteBuffers(1, &this->gridVerticalLineVboBuffer);
+	this->GetError(__LINE__);
+	
+	glDeleteVertexArrays(1, &this->cellVaoBuffer);
+	glDeleteVertexArrays(1, &this->gridHorizontalLineVaoBuffer);
+	glDeleteVertexArrays(1, &this->gridVerticalLineVaoBuffer);
+	this->GetError(__LINE__);
+}
+
+void SimulatorPage::DisposeImGui()
+{
+	ImGui_ImplOpenGL3_Shutdown();
+	ImGui_ImplGlfw_Shutdown();
+	ImGui::DestroyContext();
+}
+
+// Initializes and presets all systems that render with OpenGL
 void SimulatorPage::InitOpenGL()
 {
-	// Set some uniform variable in the default shader
-	this->shaders.use();
-	this->colorUniform = this->shaders.getUniformLocation("u_Color");
-	this->projectionMatrix = glm::ortho(0.0f, 1.0f, 1.0f, 0.0f);
-
-	glUniform4f(this->colorUniform, this->lineColor.x, this->lineColor.y, this->lineColor.z, 1.0f);
-
-	// Create a VAO and a VBO
+	// Rewrite the coordinate system to be in a pixel to pixel ratio, 
+	// this will make setting up the grid system more easy
+	this->projectionMatrix = glm::ortho(0.0f, (float)this->screenWidth, (float)this->screenHeight, 0.0f);
+	// Initialize cell buffers
 	glGenVertexArrays(1, &this->cellVaoBuffer);
-	glBindVertexArray(this->cellVaoBuffer);
-
-	// Fill the VBO with data
 	glGenBuffers(1, &this->cellVboBuffer);
+	glGenBuffers(1, &this->cellEboBuffer);
+	glGenBuffers(1, &this->cellOffsetBuffer);
+	glGenBuffers(1, &this->cellColorBuffer);
+	
+	glBindVertexArray(this->cellVaoBuffer);
+	
+	// Fill the buffers with data
 	glBindBuffer(GL_ARRAY_BUFFER, this->cellVboBuffer);
-	glBufferData(GL_ARRAY_BUFFER, 4 * sizeof(glm::vec3), cellVertices, GL_DYNAMIC_DRAW);
+	glBufferData(GL_ARRAY_BUFFER, 4 * sizeof(glm::vec2), this->cellVertices, GL_STATIC_DRAW);
 
-	// Create an EBO and fill it with data
-	unsigned int eboBuffer;
-	glGenBuffers(1, &eboBuffer);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, eboBuffer);
-	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(unsigned int), cellIndices, GL_DYNAMIC_DRAW);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, this->cellEboBuffer);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, 6 * sizeof(unsigned int), this->cellIndices, GL_STATIC_DRAW);
 
-	// Define the data layout
-	// CHANGE TO GL_TRUE WHEN BRICKED and tell Guylian that this was a mistake!
-	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(glm::vec3), (void*)0);
+	// Define the data layout for the GPU
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2), (void*)0);
+
+	// Define instance data
+	glBindBuffer(GL_ARRAY_BUFFER, this->cellOffsetBuffer);
+	glEnableVertexAttribArray(2);
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (GLvoid*)0); // Each element is a GL_FLOAT, they make a glm::vec2 with 2 elements, and the pointer
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glVertexAttribDivisor(2, 1); // One vec2 at a time
+	
+	glBindBuffer(GL_ARRAY_BUFFER, this->cellColorBuffer);
+	glEnableVertexAttribArray(3);
+	glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (GLvoid*)0); // Each element is a GL_FLOAT, they make a glm::vec2 with 2 elements, and the pointer
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glVertexAttribDivisor(3, 1); // One vec2 at a time
+
 	glEnableVertexAttribArray(0);
 
-	// Fill the cell locations
-	debugCellLocations.insert(std::make_pair(std::make_pair(1, 1), CellState::Conductor));
-	debugCellLocations.insert(std::make_pair(std::make_pair(2, 2), CellState::Conductor));
-	debugCellLocations.insert(std::make_pair(std::make_pair(3, 3), CellState::Head));
 
-	// Out of bounds
-	debugCellLocations.insert(std::make_pair(std::make_pair(40, 1), CellState::Conductor));
-	debugCellLocations.insert(std::make_pair(std::make_pair(41, 2), CellState::Conductor));
-	debugCellLocations.insert(std::make_pair(std::make_pair(42, 3), CellState::Conductor));
+	// Initialize grid line buffers
+	glGenVertexArrays(1, &this->gridHorizontalLineVaoBuffer);
+	glGenVertexArrays(1, &this->gridVerticalLineVaoBuffer);
 
-	this->cellSizeDivisor = 48;
+	glGenBuffers(1, &this->gridHorizontalLineVboBuffer);
+	glGenBuffers(1, &this->gridVerticalLineVboBuffer);
 
-	this->UpdateCellSize();
-	this->InitGrid();
+	// Horizontal lines
+	glBindVertexArray(this->gridHorizontalLineVaoBuffer);
+	
+	// Fill the buffer with data
+	glBindBuffer(GL_ARRAY_BUFFER, this->gridHorizontalLineVboBuffer);
+	glBufferData(GL_ARRAY_BUFFER, 2 * sizeof(glm::vec2), this->gridHorizontalLines, GL_STATIC_DRAW);
+
+	// Define the data layout for the GPU
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2), (void*)0);
+	glEnableVertexAttribArray(0);
+
+	// Vertical lines
+	glBindVertexArray(this->gridVerticalLineVaoBuffer);
+
+	// Fill the buffer with data
+	glBindBuffer(GL_ARRAY_BUFFER, this->gridVerticalLineVboBuffer);
+	glBufferData(GL_ARRAY_BUFFER, 2 * sizeof(glm::vec2), this->gridVerticalLines, GL_STATIC_DRAW);
+
+	// Define the data layout for the GPU
+	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2), (void*)0);
+	glEnableVertexAttribArray(0);
+
+	//this->InitGrid();
 }
 
 void SimulatorPage::InitImGui()
@@ -128,17 +152,20 @@ void SimulatorPage::InitImGui()
 	// Setup ImGUI Context
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
+  
+	this->imguiIO = &ImGui::GetIO(); (void)this->imguiIO;
+	this->imguiIO->WantCaptureKeyboard = true;
 
-	this->imguiIO = ImGui::GetIO(); (void)this->imguiIO;
-	
 	// Enable keyboard input
-	this->imguiIO.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+	this->imguiIO->ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
 
 	ImGui::StyleColorsDark();
 
 	// Setup renderer bindings
 	ImGui_ImplGlfw_InitForOpenGL(this->window, true);
 	ImGui_ImplOpenGL3_Init(this->glsl_version);
+	ImGui::LoadIniSettingsFromDisk("imgui.ini");
+	Config::instance->SetImGuiStyle(&ImGui::GetStyle());
 }
 
 void SimulatorPage::InitSimulator()
@@ -149,448 +176,537 @@ void SimulatorPage::InitSimulator()
 void SimulatorPage::RenderOpenGL()
 {
 	// Renders graphics through OpenGL
-
-	// Render all of the cells
+	
+	// Render all the cells within the view port
 	this->RenderCells();
 
-	// Render the grid as the last item, this way the grid becomes an overlay
+	// Render the grid lines
 	this->RenderGrid();
 }
 
 void SimulatorPage::RenderImGui()
 {
 	// Renders the GUI with Dear ImGUI
-
 	ImGui_ImplOpenGL3_NewFrame();
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
 
-	ImGui::Begin("Test");
-	ImGui::Text("This is some useful text.");
+	ImGui::CaptureKeyboardFromApp(true);
+		
+	const ImGuiWindowFlags m_defaultWindowArgs = ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize;
+  
+	if (ImGui::BeginMainMenuBar())
+	{
+		if (ImGui::BeginMenu("File"))
+		{
+			if (ImGui::MenuItem("Open"))
+				ImGuiFileDialog::Instance()->OpenDialog("chooseWorldFile", "Choose world file", ".csv", "");
+			if (ImGui::MenuItem("Save"))
+				ImGuiFileDialog::Instance()->OpenDialog("saveWorldFile", "Save world file", ".csv", "");
+			if (ImGui::MenuItem("Exit to menu")) 
+			{
+				this->nextPage = new HomePage(this->window);
+				this->closeThisPage = true;
+			}
+			if (ImGui::MenuItem("Exit"))
+			{
+				this->closeThisPage = true;
+				glfwSetWindowShouldClose(this->window, 1);
+			}
+			ImGui::EndMenu();
+		}
+
+		if (ImGui::BeginMenu("View"))
+		{
+			ImGui::MenuItem("Debug window", nullptr, &this->debugWindowOpen);
+			ImGui::MenuItem("Brushes window", nullptr, &this->brushWindowOpen);
+			ImGui::MenuItem("worldDetailsWindowOpen", nullptr, &this->worldDetailsWindowOpen);
+			ImGui::EndMenu();
+		}
+		ImGui::EndMainMenuBar();
+	}
+	
+	if (ImGui::Begin("World options", false, m_defaultWindowArgs))
+	{
+		if (this->worldCells.GetIsRunning())
+		{
+			ImGui::Text("Start");
+			if (ImGui::Button("Stop"))
+				this->worldCells.PauzeSimulation();
+		}
+		else
+		{
+			if (ImGui::Button("Start"))
+				this->worldCells.StartSimulation();
+			ImGui::Text("Stop");
+		}
+		if (ImGui::Button("Reset"))
+			this->worldCells.ResetSimulation();
+
+		if (ImGui::Button("Clear head and tails to conductors"))
+			this->worldCells.ResetToConductors();
+
+		if (ImGui::SliderFloat("Target speed", &this->targetSimulationSpeed, 0.01f, 256, "%.2f", 5.0f))
+			this->worldCells.SetTargetSpeed(this->targetSimulationSpeed);
+	}
+	// Legacy API style not yet fixed by ImGui
 	ImGui::End();
+
+	if (this->brushWindowOpen)
+	{
+		if (ImGui::Begin("Brush", false, m_defaultWindowArgs))
+		{
+			ImGui::Columns(2, "", false);
+			bool m_preState = ImGui::IsItemClicked(0);
+			ImGui::Text("Type");
+			ImGui::SetNextItemWidth(100);
+			if (ImGui::IsItemClicked() != m_preState && !m_preState)
+				this->pixeledView = !this->pixeledView;
+
+			if (ImGui::ListBox("", &this->selectedCellDrawName, this->cellDrawStateNames, 4))
+			{
+				this->cellDrawState = (CellState)this->selectedCellDrawName;
+			}
+			ImGui::NextColumn();
+			ImGui::Text("Brush thickness");
+			ImGui::SetNextItemWidth(100);
+			// Usage of space is required otherwise items will be added to previous list box (where the name is also "")
+			// because it will create a ImGui ID from the name.
+			if (ImGui::ListBox(" ", &this->brushRadiusSelectorPos, this->brushRadiusNames, 6))
+			{
+				// See proof below
+				this->brushRadius = (this->brushRadiusSelectorPos * 2) + 1;
+				/*
+				1
+					return ( 0 * 2) +1; = 1
+				3
+					return (1 *2) +1; = 3;
+				5
+					return (2 * 2) + 1; = 5;
+				7
+					return (3 * 2) + 1; = 7
+				9
+					return (4 * 2) + 1 = 9
+				11
+					return (5 * 2) + 1 = 11
+				*/
+			}
+		}
+		// Legacy API style not yet fixed by ImGui
+		ImGui::End();
+	}
+
+	if (this->debugWindowOpen)
+	{
+		if (ImGui::Begin("Debug", false, m_defaultWindowArgs))
+		{
+			ImGui::Columns(2);
+			ImGui::SetColumnWidth(0, 200);
+			ImGui::SetColumnWidth(1, 80);
+
+			ImGui::Text("Status: ");
+			ImGui::Text("Conductor: ");
+			ImGui::Text("Head: ");
+			ImGui::Text("Tail: ");
+			ImGui::Text("Last update cycle time (ms): ");
+			ImGui::Text("FPS:");
+			ImGui::Text("Generation:");
+			ImGui::NextColumn();
+			if (this->worldCells.GetIsRunning())
+				ImGui::Text("Running");
+			else
+				ImGui::Text("Paused");
+
+			auto m_cellStats = this->worldCells.GetStatistics();
+			ImGui::Text("%i", m_cellStats[2]); //Conductor count
+			ImGui::Text("%i", m_cellStats[0]); // Head count
+			ImGui::Text("%i", m_cellStats[1]); // Tail count
+			ImGui::Text("%.4f", this->worldCells.lastUpdateDuration);
+			ImGui::Text("%.4f", this->imguiIO->Framerate);
+			ImGui::Text("%i", this->worldCells.GetDisplayGeneration());
+		}
+		// Legacy API style not yet fixed by ImGui
+		ImGui::End();
+	}
+	this->isInImguiWindow = ImGui::IsAnyWindowHovered();
+
+	if (this->worldDetailsWindowOpen)
+	{
+		if (ImGui::Begin("World Details", false, ImGuiWindowFlags_NoCollapse))
+		{
+			ImGui::InputText("Author Name", &this->worldCells.author[0], 32);
+			ImGui::InputText("World Name", &this->worldCells.name[0], 32);
+			ImGui::InputText("Description", &this->worldCells.description[0], 512);
+		}
+		// Legacy API style not yet fixed by ImGui
+		ImGui::End();
+	}
+
+	// Display the choose file browser dialog
+	if (ImGuiFileDialog::Instance()->FileDialog("chooseWorldFile"))
+	{
+		// IF the action is OK we will get the chosen file from the file dialog
+		if (ImGuiFileDialog::Instance()->IsOk == true)
+		{
+			// Get the path and name of the file and open it with the world.h API
+			std::string m_filePathName = ImGuiFileDialog::Instance()->GetFilepathName();
+
+			// Open the file
+			if (m_filePathName != "")
+				this->worldCells.Open(m_filePathName);
+
+			// Initialize the rendering of all the newly added cells
+			for (auto m_cell : this->worldCells.cells)
+				m_cell.second->InitRender(this->gridCellShader);
+
+			auto m_topLeft = this->worldCells.GetCenterCoordinates();
+			this->scrollOffsetX = -(m_topLeft.first - 1);
+			this->scrollOffsetY = -(m_topLeft.second - 2);
+		}
+
+		// close
+		ImGuiFileDialog::Instance()->CloseDialog("chooseWorldFile");
+	}
+
+	// Display the choose file browser dialog
+	if (ImGuiFileDialog::Instance()->FileDialog("saveWorldFile"))
+	{
+		// IF the action is OK we will get the chosen file from the file dialog
+		if (ImGuiFileDialog::Instance()->IsOk == true)
+		{
+			// Get the path and name of the file and open it with the world.h API
+			std::string m_filePathName = ImGuiFileDialog::Instance()->GetFilepathName();
+
+			// Save the file
+			if (m_filePathName != "")
+			{
+				this->worldCells.filePath = m_filePathName;
+				this->worldCells.Save();
+			}
+		}
+
+		// close
+		ImGuiFileDialog::Instance()->CloseDialog("saveWorldFile");
+	}
 
 	ImGui::Render();
 
-	ImGui::EndFrame();
+	ImGui::EndFrame();	
 
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 }
 
-void SimulatorPage::UpdateSimulation()
-{
-	// Updates the simulation
-}
-
-void SimulatorPage::DisposeOpenGL()
-{
-	// Removes all OpenGL pointers, etc.
-}
-
-void SimulatorPage::DisposeImGui()
-{
-	// Removes Dear ImGUI
-}
-
-Page* SimulatorPage::Run()
-{
-	this->InitOpenGL();
-	this->InitImGui();
-
-	bool m_exit = false;
-	Page* m_nextPage = nullptr;
-	
-	while (!m_exit && !glfwWindowShouldClose(this->window))
-	{
-		glfwPollEvents();
-
-		// Clear the screen
-		glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-		glClear(GL_COLOR_BUFFER_BIT);
-
-		this->HandleInput(this->window);
-		this->RenderOpenGL();
-		this->RenderImGui();
-
-		glfwSwapBuffers(this->window);
-	}
-
-	ImGui_ImplOpenGL3_Shutdown();
-	ImGui_ImplGlfw_Shutdown();
-	ImGui::DestroyContext();
-
-	return m_nextPage;
-}
-
-// Grid system
-void SimulatorPage::InitGrid()
-{
-	glm::vec2 m_gridColumns[] = {
-		glm::vec2(0.0f, 0.0f),
-		glm::vec2(1.0f, 0.0f)
-	};
-
-	glm::vec2 m_gridRows[] = {
-		glm::vec2(0.0f, 0.0f),
-		glm::vec2(0.0f, 1.0f)
-	};
-
-	// Create and compile shaders
-	this->gridCellShader.setVertexShader("shaders/gridCellVertexShader.glsl");
-	this->gridCellShader.setFragmentShader("shaders/basicFragmentShader.glsl");
-	this->gridCellShader.compile();
-
-	this->gridLineShader.setVertexShader("shaders/gridLineVertexShader.glsl");
-	this->gridLineShader.setFragmentShader("shaders/basicFragmentShader.glsl");
-	this->gridLineShader.compile();
-	this->gridLineShader.use();
-
-	glUniformMatrix4fv(gridLineShader.getUniformLocation("u_Projection"), 1, GL_FALSE, &this->projectionMatrix[0][0]);
-
-	// Create and bind a new VAO
-	glGenVertexArrays(1, &this->gridColumnVAO);
-	glBindVertexArray(this->gridColumnVAO);
-
-	// Bind grid columns
-	glGenBuffers(1, &this->gridColumnVBO);
-	glBindBuffer(GL_ARRAY_BUFFER, this->gridColumnVBO);
-	glBufferData(GL_ARRAY_BUFFER, 2 * sizeof(glm::vec2), m_gridColumns, GL_STATIC_DRAW);
-
-	// Define data layout
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2), (void*)0);
-	glEnableVertexAttribArray(0);
-
-	// Create and bind a new VAO
-	glGenVertexArrays(1, &this->gridRowVAO);
-	glBindVertexArray(this->gridRowVAO);
-
-	// Bind grid rows
-	glGenBuffers(1, &this->gridRowVBO);
-	glBindBuffer(GL_ARRAY_BUFFER, this->gridRowVBO);
-	glBufferData(GL_ARRAY_BUFFER, 2 * sizeof(glm::vec2), m_gridRows, GL_STATIC_DRAW);
-
-	// Define data layout
-	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2), (void*)0);
-	glEnableVertexAttribArray(0);
-}
-
-void SimulatorPage::RenderGrid()
-{
-	this->gridLineShader.use();
-
-	int colorUniform = gridLineShader.getUniformLocation("u_Color");
-	int matrixUniform = gridLineShader.getUniformLocation("u_Projection");
-	int colCountUniform = gridLineShader.getUniformLocation("u_ColCount");
-	int colOrRowUniform = gridLineShader.getUniformLocation("u_ColOrRow");
-
-	// Set the line color
-	glUniform4f(colorUniform, this->lineColor.x, this->lineColor.y, this->lineColor.z, 1.0f);
-
-	// Set the projection matrix
-	glUniformMatrix4fv(matrixUniform, 1, GL_FALSE, &this->projectionMatrix[0][0]);
-
-	// Set the line width to 4
-	glLineWidth(this->lineThickness);
-
-	// Draw vertical lines
-	int loopAmount = (this->screenWidth / this->cellSizeDivisor);
-	glUniform1i(colCountUniform, loopAmount);
-
-	glBindVertexArray(this->gridRowVAO);
-	glUniform1i(colOrRowUniform, 1); // Start rendering rows (Vertical lines
-	glDrawArraysInstanced(GL_LINES, 0, GL_UNSIGNED_INT, loopAmount + 2);
-
-	// Draw horizontal lines
-	loopAmount = (this->screenHeight / this->cellSizeDivisor);
-	glUniform1i(colCountUniform, loopAmount);
-
-	glBindVertexArray(this->gridColumnVAO);
-	glUniform1i(colOrRowUniform, 0); // Start rendering columns (Horizontal lines)
-	glDrawArraysInstanced(GL_LINES, 0, GL_UNSIGNED_INT, loopAmount + 2);
-}
-
-void SimulatorPage::HandleInput(GLFWwindow* a_window)
-{
-	// If the escape key gets pressed, close the window
-	if (glfwGetKey(a_window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-		glfwSetWindowShouldClose(this->window, true);
-}
-
 void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_posY)
 {
-	// Calculate in which cell the mouse pointer is located
-	double m_extraY = (a_posY / this->cellSizeDivisor);
+	int m_cellSizeInPx = this->pixeledView ? 1 : this->cellSizeInPx;
+	coordinatePart m_curCellXHovered = (((coordinatePart)this->gridLineSizeInPx + (coordinatePart)a_posX) / (coordinatePart)m_cellSizeInPx);
+	coordinatePart m_curCellYHovered = (((coordinatePart)this->gridLineSizeInPx + (coordinatePart)a_posY) / (coordinatePart)m_cellSizeInPx);
+	
+	static coordinatePart m_lastCellX = 0;
+	static coordinatePart m_lastCellY = 0;
+	static double m_lastMouseX = 0;
+	static double m_lastMouseY = 0;
 
-	int m_cellX = a_posX / this->cellSizeDivisor;
-	int m_cellY = (a_posY - m_extraY) / this->cellSizeDivisor;
-
-	// Update the current hovered grid cols
-	if (this->curColHoveredX != m_cellX)
-		this->curColHoveredX = m_cellX + this->cellScrollOffsetX;
-
-	if (this->curColHoveredY != m_cellY)
-		this->curColHoveredY = m_cellY + this->cellScrollOffsetY;
-
-	static int m_lastCellX = 0;
-	static int m_lastCellY = 0;
-
-	bool m_equal = m_lastCellX == this->curColHoveredX && m_lastCellY == this->curColHoveredY;
-
-	// Add cells or change cell state by dragging
-	if (leftMouseIsDown && !m_equal && !rightMouseIsDown)
+	// Calculate in which cell the mouse cursor is located
+	if (this->curCellHoveredX != m_curCellXHovered - this->scrollOffsetX)
 	{
-		m_lastCellX = this->curColHoveredX;
-		m_lastCellY = this->curColHoveredY;
-		this->DrawGridCell(true);
+		this->curCellHoveredX = m_curCellXHovered - this->scrollOffsetX;
 	}
 
-	static int m_lastMouseX = 0;
-	static int m_lastMouseY = 0;
-
-	// Scrolling with the middle mouse button
-	if (middleMouseIsDown)
+	if (this->curCellHoveredY != m_curCellYHovered - this->scrollOffsetY)
 	{
-		// Calculate the difference between the current and last mouse position
-		int m_scrollDifferenceX = a_posX - m_lastMouseX;
-		int m_scrollDifferenceY = a_posY - m_lastMouseY;
-
-		scrollDelayBuffer += 0.1f;
-
-		if (scrollDelayBuffer >= scrollSensitivity)
+		this->curCellHoveredY = m_curCellYHovered - this->scrollOffsetY;
+	}
+  
+	// Add / remove cells while the mouse is being dragged around
+	if (this->leftMouseButtonIsDown)
+	{
+		if (m_lastCellX != m_curCellXHovered || m_lastCellY != m_curCellYHovered)
 		{
-			// Horizontal scrolling
-			if (m_scrollDifferenceX < 0)
+			this->AddCellToWorld(this->curCellHoveredX, this->curCellHoveredY);
+			// TODO. maybe calculate a border line at which we know that there are already items (from the original click event for or previous drag)
+			if (this->brushRadius > 1)
 			{
-				// Scroll right
-				this->cellScrollOffsetX += scrollSpeed;
-				this->gridLineScrollOffsetX -= scrollSpeed;
+				int m_middle = this->brushRadius / 2;
+				for (int m_xOffset = -m_middle; m_xOffset <= m_middle; m_xOffset++)
+				{
+					for (int m_yOffset = -m_middle; m_yOffset <= m_middle; m_yOffset++)
+					{
+						this->AddCellToWorld(this->curCellHoveredX + m_xOffset, (this->curCellHoveredY + m_yOffset));
+					}
+				}
 			}
-			else if (m_scrollDifferenceX > 0)
-			{
-				scrollDelayBuffer += 0.1f;
-
-				// Scroll left
-				this->cellScrollOffsetX -= scrollSpeed;
-				this->gridLineScrollOffsetX += scrollSpeed;
-			}
-
-			// Vertical scrolling
-			if (m_scrollDifferenceY < 0)
-			{
-				// Scroll right
-				this->cellScrollOffsetY += scrollSpeed;
-				this->gridLineScrollOffsetY -= scrollSpeed;
-			}
-			else if (m_scrollDifferenceY > 0)
-			{
-				// Scroll left
-				this->cellScrollOffsetY -= scrollSpeed;
-				this->gridLineScrollOffsetY += scrollSpeed;
-			}
-
-			scrollDelayBuffer = 0.0f;
 		}
-
-		m_lastMouseX = a_posX;
-		m_lastMouseY = a_posY;
 	}
-
-	// Remove cells by dragging
-	if (rightMouseIsDown && !leftMouseIsDown)
+	
+	// Scrolling
+	if (this->rightMouseButtonIsDown || this->scrollWheelButtonIsDown)
 	{
-		this->RemoveGridCell();
+		coordinatePart m_diffX = m_curCellXHovered - m_lastCellX;
+		coordinatePart m_diffY = m_curCellYHovered - m_lastCellY;
+		this->scrollOffsetX += m_diffX;
+		this->scrollOffsetY += m_diffY;
 	}
+
+	m_lastMouseX = a_posX;
+	m_lastMouseY = a_posY;	
+	m_lastCellX = m_curCellXHovered;
+	m_lastCellY = m_curCellYHovered;
 }
 
 void SimulatorPage::MouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods)
 {
-	// Left mouse click (button down)
+	if (this->isInImguiWindow)
+		return;
+
+	// Left mouse button press
 	if (a_button == 0 && a_action == 1)
 	{
-		leftMouseIsDown = true;
-		this->DrawGridCell(false);
+		this->leftMouseButtonIsDown = true;
+		this->AddCellToWorld(this->curCellHoveredX, this->curCellHoveredY);
+		if (this->brushRadius > 1)
+		{
+			int m_middle = this->brushRadius / 2;
+			for (int m_xOffset = -m_middle; m_xOffset <= m_middle; m_xOffset++)
+			{
+				for (int m_yOffset = -m_middle; m_yOffset <= m_middle; m_yOffset++)
+				{
+					this->AddCellToWorld(this->curCellHoveredX + m_xOffset, (this->curCellHoveredY + m_yOffset));
+				}
+			}
+		}
 	}
-	// Left mouse click (button up)
+	// Left mouse button release
 	else if (a_button == 0 && a_action == 0)
 	{
-		leftMouseIsDown = false;
-
-		// Resets the last cell state
-		lastCellState = -1;
+		this->leftMouseButtonIsDown = false;
 	}
 
-	// Right mouse click (button down)
+	// Right mouse button press
 	if (a_button == 1 && a_action == 1)
 	{
-		rightMouseIsDown = true;
-		this->RemoveGridCell();
-	
-		lastCellState = -1;
+		this->rightMouseButtonIsDown = true;
 	}
-	// Right mouse click (button up)
+	// Right mouse button release
 	else if (a_button == 1 && a_action == 0)
 	{
-		rightMouseIsDown = false;
-		scrollDelayBuffer = 0.0f;
-
-		lastCellState = -1;
+		this->rightMouseButtonIsDown = false;
 	}
 
-	// Middle mouse click (scroll wheel button clicked down)
+	// Scroll wheel button press
 	if (a_button == 2 && a_action == 1)
 	{
-		middleMouseIsDown = true;
-
-		lastCellState = -1;
+		this->scrollWheelButtonIsDown = true;
 	}
-	// Middle mouse click (scroll wheel button clicked up)
+	// Scroll wheel button release
 	else if (a_button == 2 && a_action == 0)
 	{
-		middleMouseIsDown = false;
-
-		lastCellState = -1;
+		this->scrollWheelButtonIsDown = false;
 	}
 }
 
-void SimulatorPage::DrawGridCell(bool a_drawSameColor)
+void SimulatorPage::MouseScroll(GLFWwindow* a_window, double a_xOffset, double a_yOffset)
 {
-	auto m_foundElement = debugCellLocations.find(std::make_pair(this->curColHoveredX, this->curColHoveredY));
-
-	if (m_foundElement == debugCellLocations.end())
+	if (this->isInImguiWindow)
+		return;
+	
+	// Zoom in
+	if (a_yOffset > 0 && this->cellSizeInPx < 128)
 	{
-		CellState m_cellState = CellState::Conductor;
-
-		// Check if we need to draw the default cellState
-		if (lastCellState > -1)
-			m_cellState = (CellState)lastCellState;
-
-		// Insert the new cell
-		debugCellLocations.insert(std::make_pair(std::make_pair(this->curColHoveredX, this->curColHoveredY), m_cellState));
+		this->cellSizeInPx += 2;
 	}
-	else
+	// Zoom out
+	else if (a_yOffset < 0 && this->cellSizeInPx > 16)
 	{
-		if (a_drawSameColor && lastCellState == -1)
-			lastCellState = m_foundElement->second;
+		this->cellSizeInPx -= 2;
+	}
+}
 
-		// Get the cellstate and increment it
-		int m_state = m_foundElement->second;
-		m_state += 1;
-
-		// Remove the cell when it gets the background state assigned
-		if (!a_drawSameColor && (m_foundElement->second == CellState::Background || m_state > 2))
+void SimulatorPage::KeyPress(GLFWwindow* a_window, int a_key, int a_scancode, int a_action, int a_mods)
+{
+	if (!this->manuallyAddKeycodesToImgui)
+		return;
+	if (a_key <= CHAR_MAX)
+	{
+		if (a_mods == 0) // No modifier
 		{
-			debugCellLocations.erase(m_foundElement);
-		}
-		else if(!a_drawSameColor)
-		{
-			// Modify the state of the cell pointer
-			m_foundElement->second = (CellState)m_state;
+			// normal keys
+			if (a_key >= 65 && a_key <= 90)
+				a_key += 32;
 		}
 		else
 		{
-			m_foundElement->second = (CellState)lastCellState;
+			// key 1 tot 5 above qwerty
+			if (a_key >= 49 && a_key <= 53 && a_key != 50 /*see below*/)
+				a_key -= 16;
+			// 2 -> 50
+			else if (a_key == 50)
+				a_key = 64;
+			// 6 -> 38
+			else if (a_key == 54)
+				a_key = 94;
+			//7 -> 55
+			else if (a_key == 55)
+				a_key = 38;
+			// 8 -> 56
+			else if (a_key == 56)
+				a_key = 42;
+			// 9 -> 57
+			else if (a_key == 57)
+				a_key = 40;
+			//0 -> 48
+			else if (a_key == 48)
+				a_key = 41;
+			// _ -> 45
+			else if (a_key == 45)
+				a_key = 95;
+			// + -> 61
+			else if (a_key == 61)
+				a_key = 43;
 		}
+		this->imguiIO->AddInputCharacter((char)a_key);
 	}
 }
 
-void SimulatorPage::RemoveGridCell()
-{
-	auto m_foundElement = debugCellLocations.find(std::make_pair(this->curColHoveredX, this->curColHoveredY));
-	
-	if (m_foundElement != debugCellLocations.end())
-	{
-		debugCellLocations.erase(m_foundElement);
-	}
-}
-
-
-// Cell rendering
 void SimulatorPage::RenderCells()
 {
-	this->gridCellShader.use();
+	// Get all of the cells that are located within the view port
+	coordinatePart m_viewportOriginX = -1 - this->scrollOffsetX;
+	coordinatePart m_viewportOriginY = -1 - this->scrollOffsetY;
 
-	// Bind the grid shader
-	this->gridCellShader.use();
-	this->colorUniform = gridCellShader.getUniformLocation("u_Color");
+	int m_cellSizeInPx = this->pixeledView ? 1 : this->cellSizeInPx;
 
-	// Sets the cell colors
-	glUniform4f(this->colorUniform, 1.0f, 1.0f, 1.0f, 1.0f);
-	glBindVertexArray(this->cellVaoBuffer);
+	long m_viewportWidth = (this->screenWidth / m_cellSizeInPx) + 2;
+	long m_viewportHeight = (this->screenHeight / m_cellSizeInPx) + 2;
 
-	// Update the projection matrix with the scales
-	int matrixUniform = this->gridCellShader.getUniformLocation("u_Projection");
-	glUniformMatrix4fv(matrixUniform, 1, GL_FALSE, &this->projectionMatrix[0][0]);
+	static std::vector<Cell*> m_cellsInViewport;
+	m_cellsInViewport.clear();
+	this->worldCells.InViewport(&m_cellsInViewport, m_viewportOriginX, m_viewportOriginY, m_viewportWidth, m_viewportHeight);
 
-	// Get the grid cell size uniforms and update them
-	int cellWidthUniform = this->gridCellShader.getUniformLocation("u_CellWidth");
-	int cellHeightUniform = this->gridCellShader.getUniformLocation("u_CellHeight");
+	// Set the projection matrix
+	this->gridCellShader.Use();
+	this->gridCellShader.SetMatrixValue("u_ProjectionMatrix", &this->projectionMatrix[0][0]);
 
-	glUniform1f(cellWidthUniform, 1.0f / (this->screenWidth / this->cellSizeDivisor));
-	glUniform1f(cellHeightUniform, 1.0f / (this->screenHeight / this->cellSizeDivisor));
-
-	// Loop through the cells
-	for (auto m_pair : debugCellLocations)
+	// Set the scaling matrix for the cell
+	glm::mat4 m_scaleMatrix = glm::scale(glm::vec3(m_cellSizeInPx, m_cellSizeInPx, 0.0f));
+	this->gridCellShader.SetMatrixValue("u_ModelMatrix", &m_scaleMatrix[0][0]);
+	
+	// Render all of the world cells
+	int m_pendingCellRenders = 0;
+	for (auto m_worldCell : m_cellsInViewport)
 	{
-		int m_viewportWidthMax = (int)(this->screenWidth / this->cellSizeDivisor) + this->cellScrollOffsetX;
-		int m_viewportHeightMax = (int)(this->screenHeight / this->cellSizeDivisor) + this->cellScrollOffsetY;
-
-		if (m_pair.first.first >= this->cellScrollOffsetX && m_pair.first.first < m_viewportWidthMax &&
-			m_pair.first.second >= this->cellScrollOffsetY && m_pair.first.second < m_viewportHeightMax
-			)
+		if(m_worldCell != nullptr)
 		{
-			Cell m_cell = Cell();
+			// Set the VAO
+			glBindVertexArray(this->cellVaoBuffer);
+			
+			// Get the latest color and offsets at their place in the array
+			m_worldCell->Render(m_cellSizeInPx, this->scrollOffsetX, this->scrollOffsetY, &this->cellOffsets[m_pendingCellRenders], &this->cellColors[m_pendingCellRenders]);
+			m_pendingCellRenders++;
 
-			m_cell.x = m_pair.first.first;
-			m_cell.y = m_pair.first.second;
-			m_cell.cellState = m_pair.second;
-
-			int cellOffsetVerticalUniform = this->gridCellShader.getUniformLocation("u_VerticalOffset");
-			int cellOffsetHorizontalUniform = this->gridCellShader.getUniformLocation("u_HorizontalOffset");
-
-			glUniform1i(cellOffsetVerticalUniform, m_cell.y - this->cellScrollOffsetY);
-			glUniform1i(cellOffsetHorizontalUniform, m_cell.x - this->cellScrollOffsetX);
-
-			// Set the color of the cell
-			if (m_cell.cellState == CellState::Conductor)
+			if (m_pendingCellRenders == InstanceBufferSize)
 			{
-				glUniform4f(this->colorUniform, 1.0f, 1.0f, 0.0f, 1.0f);
+				// If we filled all the buffers, copy them to the GPU, render them and start over again
+				this->UpdateAndRenderPendingCells(m_pendingCellRenders);
+				m_pendingCellRenders = 0;
 			}
-			else if (m_cell.cellState == CellState::Head)
-			{
-				glUniform4f(this->colorUniform, 1.0f, 0.0f, 0.0f, 1.0f);
-			}
-			else if (m_cell.cellState == CellState::Tail)
-			{
-				glUniform4f(this->colorUniform, 0.0f, 0.0f, 1.0f, 1.0f);
-			}
-
-			m_cell.InitRender(m_cell.x, m_cell.y);
-			m_cell.Render(this->colorUniform, this->cellVaoBuffer);
 		}
-		else
-			continue;
+	}
+
+	// If there are any cells that where left in the buffer, send them to GPU and render them
+	if (m_pendingCellRenders > 0)
+	{
+		this->UpdateAndRenderPendingCells(m_pendingCellRenders);
+		m_pendingCellRenders = 0;
 	}
 }
 
-void SimulatorPage::UpdateCellSize()
+void SimulatorPage::UpdateAndRenderPendingCells(int a_pendingCellRenders)
 {
-	cellHeight = (1.0f / (this->screenHeight / this->cellSizeDivisor));
-	cellWidth = (1.0f / (this->screenWidth / this->cellSizeDivisor));
-
-	glm::vec3 m_newCellVertices[] = {
-		// Triangle 1
-		glm::vec3(0.0f, 0.0f, 0.0f), // Index 0, Top left
-		glm::vec3(0.0f, cellHeight, 0.0f), // Index 1, Bottom left
-		glm::vec3(cellWidth, cellHeight, 0.0f), // Index 2, Bottom right
-
-		// Triangle 2
-		glm::vec3(cellWidth, 0.0f, 0.0f)  // Index 3, Top right
-	};
-
 	glBindVertexArray(this->cellVaoBuffer);
-	glBindBuffer(GL_ARRAY_BUFFER, this->cellVboBuffer);
 
-	// Update the VBO data
-	glm::vec3* m_bufferDataPtr = (glm::vec3*)glMapBuffer(GL_ARRAY_BUFFER, GL_WRITE_ONLY);
-	memcpy(m_bufferDataPtr, &m_newCellVertices, sizeof(m_newCellVertices));
-	glUnmapBuffer(GL_ARRAY_BUFFER);
+	glBindBuffer(GL_ARRAY_BUFFER, this->cellOffsetBuffer);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec2) * InstanceBufferSize, &this->cellOffsets[0], GL_DYNAMIC_DRAW);
+
+	glBindBuffer(GL_ARRAY_BUFFER, this->cellColorBuffer);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * InstanceBufferSize, &this->cellColors[0], GL_DYNAMIC_DRAW);
+	glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0, a_pendingCellRenders);
+
+	glBindVertexArray(0);
+}
+
+void SimulatorPage::RenderGrid()
+{
+	if (this->pixeledView)
+		return;
+
+	this->gridLineShader.Use();
+	
+	// Get the uniforms
+	int m_projectionMatrixUniform = this->gridLineShader.GetUniformLocation("u_ProjectionMatrix");
+	int m_drawHorizontalUniform = this->gridLineShader.GetUniformLocation("u_DrawHorizontal");
+	int m_cellSizeInPxUniform = this->gridLineShader.GetUniformLocation("u_CellSizeInPx");
+	int m_colorUniform = this->gridLineShader.GetUniformLocation("u_Color");
+
+	// Set the grid line size
+	glLineWidth((GLfloat)this->gridLineSizeInPx);
+
+	// Set the projection matrix
+	glUniformMatrix4fv(m_projectionMatrixUniform, 1, GL_FALSE, &this->projectionMatrix[0][0]);
+
+	// Set the line color
+	glUniform4f(m_colorUniform, 0.5f, 0.5f, 0.5f, 1.0f);
+
+	// Set the cell size in pixels
+	glUniform1i(m_cellSizeInPxUniform, this->cellSizeInPx);
+
+	// Draw horizontal grid lines
+	glUniform1i(m_drawHorizontalUniform, 1);
+
+	int m_lineCount = this->screenHeight / this->cellSizeInPx;
+
+	glBindVertexArray(this->gridHorizontalLineVaoBuffer);
+
+	glDrawArraysInstanced(GL_LINES, 0, 2, m_lineCount + 2);
+
+	// Draw vertical grid lines
+	glUniform1i(m_drawHorizontalUniform, 0);
+
+	glBindVertexArray(this->gridVerticalLineVaoBuffer);
+
+	m_lineCount = this->screenWidth / this->cellSizeInPx;
+
+	glBindVertexArray(this->gridVerticalLineVaoBuffer);
+
+	glDrawArraysInstanced(GL_LINES, 0, 2, m_lineCount + 2);
+}
+
+void SimulatorPage::AddCellToWorld(coordinatePart a_x, coordinatePart a_y)
+{
+	CellState m_cellState = this->cellDrawState; 
+	if (m_cellState == Background)
+		this->RemoveCellFromWorld(a_x, a_y);
+	else
+	{
+		bool m_doInit = false;
+		if (this->worldCells.TryInsertCellAt(a_x, a_y, m_cellState))
+			m_doInit = true;
+
+		Shader* m_shader = &this->gridCellShader;
+		this->worldCells.TryUpdateCell(a_x, a_y, 
+			[m_cellState, m_doInit, m_shader](Cell* a_foundCell) -> bool 
+			{ 
+				if (m_doInit)
+					a_foundCell->InitRender(*m_shader);
+
+				a_foundCell->cellState = m_cellState;
+				return true;
+			}
+		);
+	}
+}
+
+void SimulatorPage::RemoveCellFromWorld(coordinatePart a_x, coordinatePart a_y)
+{
+	this->worldCells.TryDeleteCell(a_x, a_y);
 }
