@@ -30,7 +30,7 @@
 
 #ifndef __SIMULATORPAGE__
 #define __SIMULATORPAGE__
-#define InstanceBufferSize 512
+#define InstanceBufferSize 1024*24
 
 class SimulatorPage : public Page
 {
@@ -133,16 +133,14 @@ private:
 	void InitSimulator();
 	void RenderOpenGL();
 	void RenderImGui();
-	void UpdateSimulation();
 	void DisposeOpenGL();
 	void DisposeImGui();
 	
 	// Input
-	void HandleInput(GLFWwindow* a_window);
-	void MouseHover(GLFWwindow* a_window, double a_posX, double a_posY);
-	void MouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods);
-	void MouseScroll(GLFWwindow* a_window, double a_xOffset, double a_yOffset);
-	void KeyPress(GLFWwindow* a_window, int a_key, int a_scancode, int a_action, int a_mods);
+	virtual void MouseHover(GLFWwindow* a_window, double a_posX, double a_posY) override;
+	virtual void MouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods) override;
+	virtual void MouseScroll(GLFWwindow* a_window, double a_xOffset, double a_yOffset) override;
+	virtual void KeyPress(GLFWwindow* a_window, int a_key, int a_scancode, int a_action, int a_mods) override;
 
 	// Grid
 	void RenderGrid();

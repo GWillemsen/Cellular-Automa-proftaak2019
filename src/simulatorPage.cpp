@@ -37,7 +37,6 @@ Page* SimulatorPage::Run()
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		// Logic
-		this->HandleInput(this->window);
 		this->RenderOpenGL();
 		this->RenderImGui();
 
@@ -373,84 +372,6 @@ void SimulatorPage::RenderImGui()
 	ImGui::EndFrame();	
 
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-}
-
-void SimulatorPage::HandleInput(GLFWwindow* a_window)
-{
-#ifdef __keybinds__
-	if (glfwGetKey(a_window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
-		glfwSetWindowShouldClose(this->window, true);
-
-	if (glfwGetKey(a_window, GLFW_KEY_S) == GLFW_PRESS)
-		this->worldCells.StartSimulation();
-
-	if (glfwGetKey(a_window, GLFW_KEY_P) == GLFW_PRESS)
-		this->worldCells.PauzeSimulation();
-
-	static bool m_lastPressedKey1 = false;
-	static bool m_lastPressedKey2 = false;
-	static bool m_lastPressedKey3 = false;
-	static bool m_lastPressedKey4 = false;
-	if (glfwGetKey(a_window, GLFW_KEY_2) == GLFW_PRESS)
-	{
-		if (!m_lastPressedKey2)
-		{
-			float m_speed = this->worldCells.GetTargetSpeed();
-			m_speed += 2.0f;
-			this->worldCells.SetTargetSpeed(m_speed);
-			m_lastPressedKey2 = true;
-		}
-	}
-	else 
-	{
-		m_lastPressedKey2 = false;
-	}
-
-	if (glfwGetKey(a_window, GLFW_KEY_1) == GLFW_PRESS)
-	{
-		if (!m_lastPressedKey1)
-		{
-			float m_speed = this->worldCells.GetTargetSpeed();
-			if (m_speed - 0.1f < 0)
-				m_speed = 0.01f;
-			else if (m_speed - 2.0f >= 1.0f)
-				m_speed -= 2.0f;
-			else
-				m_speed -= 0.1f;
-			this->worldCells.SetTargetSpeed(m_speed);
-			m_lastPressedKey1 = true;
-		}
-	}
-	else
-	{
-		m_lastPressedKey1 = false;
-	}
-
-
-	if (glfwGetKey(a_window, GLFW_KEY_3) == GLFW_PRESS)
-	{
-		if (!m_lastPressedKey3)
-		{
-			this->worldCells.Save();
-		}
-		m_lastPressedKey3 = true;
-	}
-	else
-		m_lastPressedKey3 = false;
-
-	if (glfwGetKey(a_window, GLFW_KEY_4) == GLFW_PRESS)
-	{
-		if (!m_lastPressedKey4)
-		{
-			this->worldCells.Open("world.csv");
-			for (auto m_cell : this->worldCells.cells)
-				m_cell.second->InitRender(this->gridCellShader, this->cellVaoBuffer);
-		}
-		m_lastPressedKey4 = true;
-	}
-	else
-		m_lastPressedKey4 = false;
-#endif
 }
 
 void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_posY)

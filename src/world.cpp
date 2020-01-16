@@ -400,41 +400,42 @@ void World::ProcessPartContinuesly(unsigned int a_threadId, unsigned int a_threa
 			mapSizeType m_cellCount = this->cells.size();
 			mapSizeType m_perThread = m_cellCount / a_threadCount;
 			mapSizeType m_nextPosition = m_perThread * a_threadId;
-			
-			// Update the ending of the end processor
-			if (m_cellCount != m_lastCellCount)
+			if (m_cellCount > a_threadCount)
 			{
-				m_iterator = this->cells.begin();
-				m_lastCellCount = m_cellCount;
-				
-				m_sectionEnd = this->cells.begin();
-				std::advance(m_sectionEnd, m_nextPosition + m_perThread);
-			}
-
-			// Calculate what number to move (negative or positive) to get to the m_nextPosition value
-			// Needs to be a signed number as m_toMove can go into the negative (for going backwards)
-			long long m_difference = std::distance(this->cells.begin(), m_iterator);
-			long long m_toMove = m_nextPosition - m_difference;
-			std::advance(m_iterator, m_toMove);
-
-			while (m_iterator != m_sectionEnd)
-			{
-				// An iterator item can be accessed like an pointer, you have to dereference it first.
-				Cell* m_cell = (*m_iterator).second;
-				if (m_cell->cellState == Tail)
+				// Update the ending of the end processor
+				if (m_cellCount != m_lastCellCount)
 				{
-					m_cell->decayState = Conductor;
+					m_iterator = this->cells.begin();
+					m_lastCellCount = m_cellCount;
+
+					m_sectionEnd = this->cells.begin();
+					std::advance(m_sectionEnd, m_nextPosition + m_perThread);
 				}
-				else if (m_cell->cellState == Head)
+
+				// Calculate what number to move (negative or positive) to get to the m_nextPosition value
+				// Needs to be a signed number as m_toMove can go into the negative (for going backwards)
+				long long m_difference = std::distance(this->cells.begin(), m_iterator);
+				long long m_toMove = m_nextPosition - m_difference;
+				std::advance(m_iterator, m_toMove);
+
+				while (m_iterator != m_sectionEnd)
 				{
-					this->IncrementNeighbors(m_cell->x, m_cell->y);
-					m_cell->decayState = Tail;
+					// An iterator item can be accessed like an pointer, you have to dereference it first.
+					Cell* m_cell = (*m_iterator).second;
+					if (m_cell->cellState == Tail)
+					{
+						m_cell->decayState = Conductor;
+					}
+					else if (m_cell->cellState == Head)
+					{
+						this->IncrementNeighbors(m_cell->x, m_cell->y);
+						m_cell->decayState = Tail;
+					}
+					std::advance(m_iterator, 1);
 				}
-				std::advance(m_iterator, 1);
 			}
 			// Done with editing the map, unlock it again
 			this->cellsEditLock.unlock_shared();
-
 			// Notify main
 			auto m_threadCombo = this->threadComboData.find(a_threadId);
 			ThreadCombo* m_threadData = m_threadCombo->second;
@@ -472,11 +473,13 @@ void World::ProcessLastPart()
 			// Lock editing to the map
 			this->cellsEditLock.lock_shared();
 			
-			//unsigned long long -> specified by c++0x standard to be at least a 64 bits integer.
 			mapSizeType m_cellCount = this->cells.size();
 			mapSizeType m_perThread = m_cellCount / this->totalThreads;
-			mapSizeType m_nextPosition = m_perThread * (this->totalThreads - 1);
 			
+ 			if (m_cellCount <= this->totalThreads)
+				m_perThread = 0;
+
+			mapSizeType m_nextPosition = m_perThread * (this->totalThreads - 1);
 			// Update the ending of the end processor
 			if (m_cellCount != m_lastCellCount)
 			{
@@ -838,6 +841,7 @@ void World::ResetToConductors()
 				m_cell->cellState = Conductor;
 			if (m_cell->decayState < Background)
 				m_cell->decayState = Conductor;
+			m_cell->atomic_neighborCount.store(0);
 
 
 			// Count the new conductor
