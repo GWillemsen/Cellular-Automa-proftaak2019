@@ -57,6 +57,10 @@ private:
 	cellCountType cellStatistics[3] = { 0,0,0 };
 	generationType currentGeneration = 0;
 	generationType loadedWorldGenerationOffset = 0;
+	
+	float deltaTime[30];
+	unsigned int deltaTimeIndex = 0;
+	float totalTime = 0;
 public:
 	std::map<std::pair<coordinatePart, coordinatePart>, Cell*> cells;
 

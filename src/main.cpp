@@ -32,6 +32,7 @@
 void framebuffer_size_callback(GLFWwindow* a_window, int a_width, int a_height);
 void getError(int a_line);
 GLFWwindow* CreateWindow();
+GLFWmonitor* GetSecondMonitor();
 void InitGLFW();
 bool TryInitGLAD();
 unsigned int CreateVBO(float* a_indices, int a_verticeCount);
@@ -118,17 +119,16 @@ void getError(int a_line)
 
 GLFWwindow* CreateWindow()
 {
-
 	GLFWmonitor* monitor = glfwGetPrimaryMonitor();
 	const GLFWvidmode* mode = glfwGetVideoMode(monitor);
 
 	glfwWindowHint(GLFW_REFRESH_RATE, mode->refreshRate);
 	//glfwWindowHint(GLFW_MAXIMIZED, GLFW_FALSE);
-	//glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
+	glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
 
-	GLFWwindow* window = glfwCreateWindow(1000, 1000, "LearnOpenGL", NULL, NULL);
+	//GLFWwindow* window = glfwCreateWindow(1000, 1000, "LearnOpenGL", NULL, NULL);
 	//glfwSetWindowPos(window, 1900, 0);
-	//GLFWwindow* window = glfwCreateWindow(mode->width, mode->height, "LearnOpenGL", monitor, NULL);
+	GLFWwindow* window = glfwCreateWindow(mode->width, mode->height, "LearnOpenGL", monitor, NULL);
 
 	// Get the resulting screen width & height
 	glfwGetWindowSize(window, &screenWidth, &screenHeight);
@@ -143,6 +143,16 @@ GLFWwindow* CreateWindow()
 		return nullptr;
 	}
 	return window;
+}
+
+GLFWmonitor* GetSecondMonitor()
+{
+	int m_count = 0;
+	auto m_monitors = glfwGetMonitors(&m_count);
+	if (m_count > 1)
+		return *(m_monitors + 1);
+	else
+		return nullptr;
 }
 
 void InitGLFW()

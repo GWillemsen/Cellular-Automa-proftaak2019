@@ -10,7 +10,16 @@ out vec4 FragColor;
 uniform vec4 u_Color;
 void main()
 {
-	FragColor = u_Color;//vec4(1.0f, 0.5f, 0.2f, 1.0f);
+	FragColor = u_Color;
+};)";
+
+const std::string gridCellFragmentShaderGlsl = R"(#version 330 core
+out vec4 FragColor;
+in vec3 color;
+
+void main()
+{
+   FragColor = vec4(color.x, color.y, color.z, 1.0f);
 };)";
 
 const std::string gridLineVertexShaderGlsl = R"(#version 330 core
@@ -32,12 +41,22 @@ void main()
 };)";
 
 const std::string gridCellVertexShaderGlsl = R"(#version 330 core
-layout(location = 0) in vec2 aPos;
+layout (location = 0) in vec2 aPos;
+layout (location = 2) in vec2 aInstanceOffset;
+layout (location = 3) in vec3 aColor;
+
 uniform mat4 u_ModelMatrix;
 uniform mat4 u_ProjectionMatrix;
+out vec3 color;
+
 void main()
 {
-	gl_Position = u_ProjectionMatrix * u_ModelMatrix * vec4(aPos.x, aPos.y, 1.0, 1.0);
+	// Render cells
+	vec4 m_newPosition = u_ModelMatrix * vec4(aPos.x, aPos.y, 1.0, 1.0);
+	float m_newX = m_newPosition.x + aInstanceOffset.x;
+	float m_newY = m_newPosition.y + aInstanceOffset.y;
+	gl_Position = u_ProjectionMatrix * vec4(m_newX, m_newY, m_newPosition.z, m_newPosition.w);
+	color = aColor;
 })";
 
 const std::string imguiIni = R"([Window][Debug##Default]
@@ -47,7 +66,7 @@ Collapsed=0
 
 [Window][Debug]
 Pos=0,330
-Size=370,140
+Size=370,150
 Collapsed=0
 
 [Window][Brush]
@@ -79,6 +98,7 @@ std::map<std::string, std::map<std::string, std::string>> GetResources()
 	std::map<std::string, std::string> m_shaders;
 	m_shaders.emplace(std::make_pair("basicFragmentShader.glsl", basicFragmentShaderGlsl));
 	m_shaders.emplace(std::make_pair("gridLineVertexShader.glsl", gridLineVertexShaderGlsl));
+	m_shaders.emplace(std::make_pair("gridCellFragmentShader.glsl", gridCellFragmentShaderGlsl));
 	m_shaders.emplace(std::make_pair("gridCellVertexShader.glsl", gridCellVertexShaderGlsl));
 	
 	std::map<std::string, std::string> m_inRoot;

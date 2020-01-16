@@ -21,16 +21,17 @@ private:
 
 public:
     // Sets the vertex shader of this program.
-    bool setVertexShader(std::string a_vertexShaderSource);
-    bool setFragmentShader(std::string a_fragmentShaderSource);
-	GLint getUniformLocation(std::string a_uniformName);
-    int compile();
-    void use();
-	unsigned int getProgramId();
+    bool SetVertexShader(std::string a_vertexShaderSource);
+    bool SetFragmentShader(std::string a_fragmentShaderSource);
+	GLint GetUniformLocation(std::string a_uniformName);
+    int Compile();
+    void Use();
+	unsigned int GetProgramId();
+    void SetMatrixValue(std::string a_uniformname, const GLfloat* a_data);
 
 private:
-    std::string loadShaderSource(std::string a_pathToShaderSourceFile);
-    bool shaderCompiled(unsigned int a_id);
+    std::string LoadShaderSource(std::string a_pathToShaderSourceFile);
+    bool ShaderCompiled(unsigned int a_id);
 };
 
 #endif // !__SHADER__

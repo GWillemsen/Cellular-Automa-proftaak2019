@@ -97,6 +97,10 @@ World::World()
 	this->author = "John Doe";
 	this->description = "A description";
 	this->filePath = "";
+	for (int m_index = 0; m_index < sizeof(this->deltaTime) / sizeof(float); m_index++)
+	{
+		this->deltaTime[m_index] = 0;
+	}
 	
 	this->InitializeThreads();
 }
@@ -594,7 +598,14 @@ void World::TimerThread()
 				auto m_duration = std::chrono::duration<float, std::milli>(m_endTime - m_starTime);
 
 				// Get the number of milliseconds
-				this->lastUpdateDuration = m_duration.count();
+				auto m_durationInMs = m_duration.count();
+				this->totalTime -= this->deltaTime[this->deltaTimeIndex];
+				this->totalTime += m_durationInMs;
+				this->deltaTime[this->deltaTimeIndex] = m_durationInMs;
+				const int m_deltaTimeSize = sizeof(this->deltaTime) / sizeof(float);
+				this->deltaTimeIndex++;
+				this->deltaTimeIndex = ((this->deltaTimeIndex) % m_deltaTimeSize);
+				this->lastUpdateDuration = this->totalTime / m_deltaTimeSize;
 			}
 		}
 
@@ -823,7 +834,6 @@ void World::ResetToConductors()
 	}
 	this->cellsEditLock.unlock();
 }
-
 
 unsigned long long World::GetDisplayGeneration()
 {

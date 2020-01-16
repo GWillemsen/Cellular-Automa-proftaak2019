@@ -146,6 +146,8 @@ private:
 	// Grid
 	void RenderGrid();
 	void RenderCells();
+	void UpdateAndRenderPendingCells(int a_pendingCellRenders);
+
 
 	void AddCellToWorld(coordinatePart a_x, coordinatePart a_y);
 	void RemoveCellFromWorld(coordinatePart a_x, coordinatePart a_y);
