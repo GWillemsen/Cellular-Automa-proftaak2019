@@ -30,6 +30,7 @@
 
 #ifndef __SIMULATORPAGE__
 #define __SIMULATORPAGE__
+#define InstanceBufferSize 512
 
 class SimulatorPage : public Page
 {
@@ -70,6 +71,9 @@ private:
 		glm::vec2(0.0f, this->screenHeight),
 	};
 
+	glm::vec2 cellOffsets[InstanceBufferSize];
+	glm::vec3 cellColors[InstanceBufferSize];
+	
 	// OpenGL objects
 
 	// Cell rendering
@@ -79,7 +83,9 @@ private:
 	GLuint cellVaoBuffer = -1;
 	GLuint cellVboBuffer = -1;
 	GLuint cellEboBuffer = -1;
-
+	GLuint cellOffsetBuffer = -1;
+	GLuint cellColorBuffer = -1;
+	
 	// Grid line rendering
 	GLuint gridHorizontalLineVaoBuffer = -1; // Horizontal line rendering
 	GLuint gridHorizontalLineVboBuffer = -1;
@@ -101,7 +107,7 @@ private:
 
 	char** brushRadiusNames = new char*[6] { "1", "3", "5", "7", "9", "11" };
 	int brushRadiusSelectorPos = 0;
-	int brushRadius = 2;
+	int brushRadius = 1;
 
 	// The cell state that the mouse will draw in
 	CellState cellDrawState = CellState::Conductor;
@@ -140,6 +146,8 @@ private:
 	// Grid
 	void RenderGrid();
 	void RenderCells();
+	void UpdateAndRenderPendingCells(int a_pendingCellRenders);
+
 
 	void AddCellToWorld(coordinatePart a_x, coordinatePart a_y);
 	void RemoveCellFromWorld(coordinatePart a_x, coordinatePart a_y);

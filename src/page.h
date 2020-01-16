@@ -41,8 +41,8 @@ public:
 		{
 			std::cout << "A OpenGL call with error code " << m_error << " took place somewhere between line: " << this->lastLineNumber << " and " << a_line;
 			std::cout << " most likely at page: " << this->pageName << std::endl;
-			this->lastLineNumber = a_line;
 		}
+		this->lastLineNumber = a_line;
 	}
 	virtual void MouseHover(GLFWwindow* a_window, double a_posX, double a_posY) {};
 	virtual void MouseClick(GLFWwindow* a_window, int a_button, int a_action, int a_mods) {};

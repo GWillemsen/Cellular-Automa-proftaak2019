@@ -54,8 +54,8 @@ public:
 		this->atomic_neighborCount.store(0);
 	}
 
-	void InitRender(Shader a_shader, GLuint a_vaoBufferId);
-	void Render(int a_cellSizeInPx, coordinatePart a_scrollOffsetX, coordinatePart a_scrollOffsetY);
+	void InitRender(Shader a_shader);
+	void Render(int a_cellSizeInPx, coordinatePart a_scrollOffsetX, coordinatePart a_scrollOffsetY, glm::vec2* a_offset, glm::vec3* a_color);
 };
 
 #endif // __CELL__

@@ -11,14 +11,16 @@ SimulatorPage::SimulatorPage(GLFWwindow* a_window) : Page(a_window, "SimulatorPa
 	this->gridCellShader = Shader();
 
 	// Compile the gridLine shader, this shader is going to be used to render the grid lines
-	this->gridLineShader.setVertexShader("shaders/gridLineVertexShader.glsl");
-	this->gridLineShader.setFragmentShader("shaders/basicFragmentShader.glsl");
-	this->gridLineShader.compile();
+	this->gridLineShader.SetVertexShader("shaders/gridLineVertexShader.glsl");
+	this->gridLineShader.SetFragmentShader("shaders/basicFragmentShader.glsl");
+	this->gridLineShader.Compile();
+	this->GetError(__LINE__);
 
 	// Compile the gridCell shader, this shader is going to be used to render the grid cells
-	this->gridCellShader.setVertexShader("shaders/gridCellVertexShader.glsl");
-	this->gridCellShader.setFragmentShader("shaders/basicFragmentShader.glsl");
-	this->gridCellShader.compile();
+	this->gridCellShader.SetVertexShader("shaders/gridCellVertexShader.glsl");
+	this->gridCellShader.SetFragmentShader("shaders/gridCellFragmentShader.glsl");
+	this->gridCellShader.Compile();
+	this->GetError(__LINE__);
 }
 
 Page* SimulatorPage::Run()
@@ -55,12 +57,13 @@ void SimulatorPage::InitOpenGL()
 	// Rewrite the coordinate system to be in a pixel to pixel ratio, 
 	// this will make setting up the grid system more easy
 	this->projectionMatrix = glm::ortho(0.0f, (float)this->screenWidth, (float)this->screenHeight, 0.0f);
-
 	// Initialize cell buffers
 	glGenVertexArrays(1, &this->cellVaoBuffer);
 	glGenBuffers(1, &this->cellVboBuffer);
 	glGenBuffers(1, &this->cellEboBuffer);
-
+	glGenBuffers(1, &this->cellOffsetBuffer);
+	glGenBuffers(1, &this->cellColorBuffer);
+	
 	glBindVertexArray(this->cellVaoBuffer);
 	
 	// Fill the buffers with data
@@ -72,7 +75,22 @@ void SimulatorPage::InitOpenGL()
 
 	// Define the data layout for the GPU
 	glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(glm::vec2), (void*)0);
+
+	// Define instance data
+	glBindBuffer(GL_ARRAY_BUFFER, this->cellOffsetBuffer);
+	glEnableVertexAttribArray(2);
+	glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (GLvoid*)0); // Each element is a GL_FLOAT, they make a glm::vec2 with 2 elements, and the pointer
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glVertexAttribDivisor(2, 1); // One glm:vec2 at a time
+	
+	glBindBuffer(GL_ARRAY_BUFFER, this->cellColorBuffer);
+	glEnableVertexAttribArray(3);
+	glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (GLvoid*)0); // Each element is a GL_FLOAT, they make a glm::vec2 with 2 elements, and the pointer
+	glBindBuffer(GL_ARRAY_BUFFER, 0);
+	glVertexAttribDivisor(3, 1); // One glm:vec2 at a time
+
 	glEnableVertexAttribArray(0);
+
 
 	// Initialize grid line buffers
 	glGenVertexArrays(1, &this->gridHorizontalLineVaoBuffer);
@@ -305,7 +323,7 @@ void SimulatorPage::RenderImGui()
 
 			// Initialize the rendering of all the newly added cells
 			for (auto m_cell : this->worldCells.cells)
-				m_cell.second->InitRender(this->gridCellShader, this->cellVaoBuffer);
+				m_cell.second->InitRender(this->gridCellShader);
 
 			auto m_topLeft = this->worldCells.GetTopLeftCoordinates();
 			this->scrollOffsetX = -(m_topLeft.first - 1);
@@ -425,8 +443,8 @@ void SimulatorPage::HandleInput(GLFWwindow* a_window)
 void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_posY)
 {
 	int m_cellSizeInPx = this->pixeledView ? 1 : this->cellSizeInPx;
-	coordinatePart m_curCellXHovered = (((coordinatePart)this->gridLineSizeInPx + a_posX) / (coordinatePart)m_cellSizeInPx);
-	coordinatePart m_curCellYHovered = (((coordinatePart)this->gridLineSizeInPx + a_posY) / (coordinatePart)m_cellSizeInPx);
+	coordinatePart m_curCellXHovered = (((coordinatePart)this->gridLineSizeInPx + (coordinatePart)a_posX) / (coordinatePart)m_cellSizeInPx);
+	coordinatePart m_curCellYHovered = (((coordinatePart)this->gridLineSizeInPx + (coordinatePart)a_posY) / (coordinatePart)m_cellSizeInPx);
 	
 	static coordinatePart m_lastCellX = 0;
 	static coordinatePart m_lastCellY = 0;
@@ -618,17 +636,55 @@ void SimulatorPage::RenderCells()
 	this->worldCells.InViewport(&m_cellsInViewport, m_viewportOriginX, m_viewportOriginY, m_viewportWidth, m_viewportHeight);
 
 	// Set the projection matrix
-	this->gridCellShader.use();
-	int m_projectionMatrixUniform = this->gridCellShader.getUniformLocation("u_ProjectionMatrix");
+	this->gridCellShader.Use();
+	this->gridCellShader.SetMatrixValue("u_ProjectionMatrix", &this->projectionMatrix[0][0]);
 
-	glUniformMatrix4fv(m_projectionMatrixUniform, 1, GL_FALSE, &this->projectionMatrix[0][0]);
-
+	// Set the scaling matrix for the cell
+	glm::mat4 m_scaleMatrix = glm::scale(glm::vec3(m_cellSizeInPx, m_cellSizeInPx, 0.0f));
+	this->gridCellShader.SetMatrixValue("u_ModelMatrix", &m_scaleMatrix[0][0]);
+	
 	// Render all of the world cells
+	int m_pendingCellRenders = 0;
 	for (auto m_worldCell : m_cellsInViewport)
 	{
 		if(m_worldCell != nullptr)
-			m_worldCell->Render(m_cellSizeInPx, this->scrollOffsetX, this->scrollOffsetY);
+		{
+			// Set the VAO
+			glBindVertexArray(this->cellVaoBuffer);
+			
+			// Get the latest color and offsets at their place in the array
+			m_worldCell->Render(m_cellSizeInPx, this->scrollOffsetX, this->scrollOffsetY, &this->cellOffsets[m_pendingCellRenders], &this->cellColors[m_pendingCellRenders]);
+			m_pendingCellRenders++;
+
+			if (m_pendingCellRenders == InstanceBufferSize)
+			{
+				// If we filled all the buffers, copy them to the GPU, render them and start over again
+				this->UpdateAndRenderPendingCells(m_pendingCellRenders);
+				m_pendingCellRenders = 0;
+			}
+		}
 	}
+
+	// If there are any cells that where left in the buffer, send them to GPU and render them
+	if (m_pendingCellRenders > 0)
+	{
+		this->UpdateAndRenderPendingCells(m_pendingCellRenders);
+		m_pendingCellRenders = 0;
+	}
+}
+
+void SimulatorPage::UpdateAndRenderPendingCells(int a_pendingCellRenders)
+{
+	glBindVertexArray(this->cellVaoBuffer);
+
+	glBindBuffer(GL_ARRAY_BUFFER, this->cellOffsetBuffer);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec2) * InstanceBufferSize, &this->cellOffsets[0], GL_DYNAMIC_DRAW);
+
+	glBindBuffer(GL_ARRAY_BUFFER, this->cellColorBuffer);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(glm::vec3) * InstanceBufferSize, &this->cellColors[0], GL_DYNAMIC_DRAW);
+	glDrawElementsInstanced(GL_TRIANGLES, 6, GL_UNSIGNED_INT, (void*)0, a_pendingCellRenders);
+
+	glBindVertexArray(0);
 }
 
 void SimulatorPage::RenderGrid()
@@ -636,13 +692,13 @@ void SimulatorPage::RenderGrid()
 	if (this->pixeledView)
 		return;
 
-	this->gridLineShader.use();
+	this->gridLineShader.Use();
 	
 	// Get the uniforms
-	int m_projectionMatrixUniform = this->gridLineShader.getUniformLocation("u_ProjectionMatrix");
-	int m_drawHorizontalUniform = this->gridLineShader.getUniformLocation("u_DrawHorizontal");
-	int m_cellSizeInPxUniform = this->gridLineShader.getUniformLocation("u_CellSizeInPx");
-	int m_colorUniform = this->gridLineShader.getUniformLocation("u_Color");
+	int m_projectionMatrixUniform = this->gridLineShader.GetUniformLocation("u_ProjectionMatrix");
+	int m_drawHorizontalUniform = this->gridLineShader.GetUniformLocation("u_DrawHorizontal");
+	int m_cellSizeInPxUniform = this->gridLineShader.GetUniformLocation("u_CellSizeInPx");
+	int m_colorUniform = this->gridLineShader.GetUniformLocation("u_Color");
 
 	// Set the grid line size
 	glLineWidth((GLfloat)this->gridLineSizeInPx);
@@ -688,13 +744,12 @@ void SimulatorPage::AddCellToWorld(coordinatePart a_x, coordinatePart a_y)
 		if (this->worldCells.TryInsertCellAt(a_x, a_y, m_cellState))
 			m_doInit = true;
 
-		GLint m_vaoBuffer = this->cellVaoBuffer;
 		Shader* m_shader = &this->gridCellShader;
 		this->worldCells.TryUpdateCell(a_x, a_y, 
-			[m_cellState, m_doInit, m_vaoBuffer, m_shader](Cell* a_foundCell) -> bool 
+			[m_cellState, m_doInit, m_shader](Cell* a_foundCell) -> bool 
 			{ 
 				if (m_doInit)
-					a_foundCell->InitRender(*m_shader, m_vaoBuffer);
+					a_foundCell->InitRender(*m_shader);
 
 				a_foundCell->cellState = m_cellState;
 				return true;
