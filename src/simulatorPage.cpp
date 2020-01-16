@@ -482,16 +482,9 @@ void SimulatorPage::MouseHover(GLFWwindow* a_window, double a_posX, double a_pos
 			}
 		}
 	}
-	else if (this->rightMouseButtonIsDown)
-	{
-		if (m_lastCellX != m_curCellXHovered || m_lastCellY != m_curCellYHovered)
-		{
-			this->RemoveCellFromWorld(this->curCellHoveredX, this->curCellHoveredY);
-		}
-	}
 	
 	// Scrolling
-	if (this->scrollWheelButtonIsDown)
+	if (this->rightMouseButtonIsDown)
 	{
 		coordinatePart m_diffX = m_curCellXHovered - m_lastCellX;
 		coordinatePart m_diffY = m_curCellYHovered - m_lastCellY;
@@ -537,23 +530,11 @@ void SimulatorPage::MouseClick(GLFWwindow* a_window, int a_button, int a_action,
 	if (a_button == 1 && a_action == 1)
 	{
 		this->rightMouseButtonIsDown = true;
-		this->RemoveCellFromWorld(this->curCellHoveredX, this->curCellHoveredY);
 	}
 	// Right mouse button release
 	else if (a_button == 1 && a_action == 0)
 	{
 		this->rightMouseButtonIsDown = false;
-	}
-
-	// Scroll wheel button press
-	if (a_button == 2 && a_action == 1)
-	{
-		this->scrollWheelButtonIsDown = true;
-	}
-	// Scroll wheel button release
-	else if (a_button == 2 && a_action == 0)
-	{
-		this->scrollWheelButtonIsDown = false;
 	}
 }
 
