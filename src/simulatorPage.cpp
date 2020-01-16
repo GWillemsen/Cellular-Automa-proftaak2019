@@ -197,8 +197,9 @@ void SimulatorPage::RenderImGui()
 
 		if (ImGui::BeginMenu("View"))
 		{
-			ImGui::MenuItem("Debug window", nullptr, &debugWindowOpen);
-			ImGui::MenuItem("Brushes window", nullptr, &brushWindowOpen);
+			ImGui::MenuItem("Debug window", nullptr, &this->debugWindowOpen);
+			ImGui::MenuItem("Brushes window", nullptr, &this->brushWindowOpen);
+			ImGui::MenuItem("worldDetailsWindowOpen", nullptr, &this->worldDetailsWindowOpen);
 			ImGui::EndMenu();
 		}
 		ImGui::EndMainMenuBar();
@@ -224,13 +225,13 @@ void SimulatorPage::RenderImGui()
 		if (ImGui::Button("Clear head and tails to conductors"))
 			this->worldCells.ResetToConductors();
 
-		if (ImGui::SliderFloat("Target speed", &targetSimulationSpeed, 0.01f, 256, "%.2f", 5.0f))
-			this->worldCells.SetTargetSpeed(targetSimulationSpeed);
+		if (ImGui::SliderFloat("Target speed", &this->targetSimulationSpeed, 0.01f, 256, "%.2f", 5.0f))
+			this->worldCells.SetTargetSpeed(this->targetSimulationSpeed);
 	}
 	// Legacy API style not yet fixed by ImGui
 	ImGui::End();
 
-	if (brushWindowOpen)
+	if (this->brushWindowOpen)
 	{
 		if (ImGui::Begin("Brush", false, m_defaultWindowArgs))
 		{
@@ -274,7 +275,7 @@ void SimulatorPage::RenderImGui()
 		ImGui::End();
 	}
 
-	if (debugWindowOpen)
+	if (this->debugWindowOpen)
 	{
 		if (ImGui::Begin("Debug", false, m_defaultWindowArgs))
 		{
@@ -307,6 +308,18 @@ void SimulatorPage::RenderImGui()
 		ImGui::End();
 	}
 	this->isInImguiWindow = ImGui::IsAnyWindowHovered();
+
+	if (this->worldDetailsWindowOpen)
+	{
+		if (ImGui::Begin("World Details", false, ImGuiWindowFlags_NoCollapse))
+		{
+			ImGui::InputText("Author Name", &this->worldCells.author[0], 32);
+			ImGui::InputText("World Name", &this->worldCells.name[0], 32);
+			ImGui::InputText("Description", &this->worldCells.description[0], 512);
+		}
+		// Legacy API style not yet fixed by ImGui
+		ImGui::End();
+	}
 
 	// Display the choose file browser dialog
 	if (ImGuiFileDialog::Instance()->FileDialog("chooseWorldFile"))
