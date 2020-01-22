@@ -1,6 +1,6 @@
 # Cellular-Automa-proftaak2019
 The cellular automa for the Proftaak of 2019-2020
-This is a project that @GuylianGilsing and I made. This project has the only purpose that we learned C++ and OpenGL. 
+This is a project that [GuylianGilsing](https://github.com/GuylianGilsing) and [Giel Willemsen](https://github.com/GWillemsen) made. This project has the only purpose that we learned C++ and OpenGL. 
 
 # WireWorld
 We decided to create a [WireWorld Simulator](https://en.wikipedia.org/wiki/Wireworld). Basically, you have a grid, if a conductor has 1 or 2 neighboring heads it becomes a head. Otherwise they stay the same. But a head 'decays' into a tail. And a tail into a conductor.
