@@ -21,3 +21,6 @@ WireWorld uses the following libraries and versions of those libraries:
 - GLFW - Version 3.3
 - GLAD - GL: 4.6, profile: Core, extensions: none
 - ImGUI - Version 1.74
+
+# License
+This project is distributed under the MIT license. This license does not apply to the dependencies. They remain under the license of their respective authors.
